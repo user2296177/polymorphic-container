@@ -21,6 +21,14 @@ namespace gut
 			sizeof( value_type ), alignof( value_type )
 		>;
 		
+		~polymorphic_handle() noexcept
+		{
+			if ( is_initialized_ )
+			{
+				reinterpret_cast<pointer>( &h_ )->~handle_base();
+			}
+		}
+
 		polymorphic_handle() noexcept
 			: is_initialized_{ false }
 		{}
