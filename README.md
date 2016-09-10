@@ -1,4 +1,4 @@
-#Problem
+##`polymorphic_vector<B>`, a contiguous storage container for type polymorphism. 
 
 Normally, in order to have a polymorphic collection, we store pointers to a base class.
 
