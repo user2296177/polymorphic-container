@@ -30,6 +30,11 @@ namespace gut
 			return src_;
 		}
 
+		std::size_t padding() const noexcept
+		{
+			return padding_;
+		}
+
 	protected:
 		handle_base( void* src, std::size_t const padding ) noexcept;
 		

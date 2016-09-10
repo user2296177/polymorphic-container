@@ -20,7 +20,7 @@ namespace gut
 		using const_reference = value_type const&;
 		using pointer = value_type*;
 		using const_pointer = value_type const*;
-        using size_type = std::size_t;
+        using size_type = std::vector<gut::polymorphic_handle>::size_type;
 
 		~polymorphic_vector() noexcept;
 
@@ -62,6 +62,7 @@ namespace gut
 		void emplace_back( Args&&... value );
 
 		void pop_back();
+
 		void clear() noexcept;
 		void swap( polymorphic_vector& other ) noexcept;
 
@@ -85,6 +86,25 @@ namespace gut
 
     private:
 		using byte = unsigned char;
+
+		void unchecked_erase( size_type const i )
+		{
+			gut::polymorphic_handle& h{ handles_[ i ] };
+
+			byte* erase_ptr{ reinterpret_cast<byte*>( h->src() ) - h->padding() };
+			size_type new_size;
+			h->destroy( new_size );
+			size_ -= new_size;
+
+			new_size = 0;
+			for ( size_type j{ i + 1 }, size{ handles_.size() }; j != size; ++j )
+			{
+				handles_[ j ]->transfer( erase_ptr + new_size, new_size );
+			}
+			handles_.erase( handles_.begin() + i );
+
+			assert( new_size + ( size_ - new_size ) == size_ );
+		}
 
 		void ensure_index_bounds( size_type const i ) const
 		{
@@ -295,8 +315,10 @@ template<class B>
 inline void
 gut::polymorphic_vector<B>::pop_back()
 {
-	handles_.back()->destroy( size_ );
+	size_type removed_size;
+	handles_.back()->destroy( removed_size );
 	handles_.pop_back();
+	size_ -= removed_size;
 }
 
 template<class B>
