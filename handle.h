@@ -43,28 +43,6 @@ namespace gut
 			other.src_ = nullptr;
 		}
 
-		virtual void copy( void* dst,
-			gut::polymorphic_handle& out_handle, std::size_t& out_size ) const
-		noexcept( std::is_nothrow_copy_constructible<T>::value ) override
-		{
-			padding_ = gut::calculate_padding<T>( dst );
-			T* p{ ::new ( reinterpret_cast<byte*>( dst ) + padding_ ) T
-			{
-				*reinterpret_cast<T*>( src_ )
-			} };
-			out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
-			out_size += sizeof( T ) + padding_;
-		}
-
-		virtual void transfer( void* dst, std::size_t& out_size )
-		noexcept( noexcept(
-			std::declval<handle>().transfer( is_moveable, dst ) ) ) override
-		{
-			padding_ = gut::calculate_padding<T>( dst );
-			transfer( is_moveable, reinterpret_cast<byte*>( dst ) + padding_ );
-			out_size += sizeof( T ) + padding_;
-		}
-
 		virtual void destroy()
 		noexcept( std::is_nothrow_destructible<T>::value )
 		{
@@ -80,9 +58,31 @@ namespace gut
 			out_size -= sizeof( T ) + padding_;
 		}
 
+		virtual void transfer( void* dst, std::size_t& out_size )
+		noexcept( noexcept(
+				std::declval<handle>().transfer( is_moveable, dst ) ) ) override
+		{
+			padding_ = gut::calculate_padding<T>( dst );
+			transfer( is_moveable, reinterpret_cast<byte*>( dst ) + padding_ );
+			out_size += sizeof( T ) + padding_;
+		}
+
+		virtual void copy( void* dst,
+			gut::polymorphic_handle& out_handle, std::size_t& out_size ) const
+		noexcept( std::is_nothrow_copy_constructible<T>::value ) override
+		{
+			padding_ = gut::calculate_padding<T>( dst );
+			T* p{ ::new ( reinterpret_cast<byte*>( dst ) + padding_ ) T
+			{
+				*reinterpret_cast<T*>( src_ )
+			} };
+			out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
+			out_size += sizeof( T ) + padding_;
+		}
+
 	private:
 		void transfer( std::true_type, void* dst )
-			noexcept( std::is_nothrow_move_assignable<T>::value )
+		noexcept( std::is_nothrow_move_assignable<T>::value )
 		{
 			src_ = ::new ( dst ) T{ std::move( *reinterpret_cast<T*>( src_ ) ) };
 		}

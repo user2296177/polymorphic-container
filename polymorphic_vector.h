@@ -9,14 +9,6 @@
 #include <utility>
 #include <cassert>
 
-/*
-have a new abstraction: polymorphic_vector_handle
-	- adds a std::size_t member that indicates the handle's position in the vector
-	- used for fast insertion/removal
-
-do not shift elements right away, shift only if it is required to do so.
-*/
-
 namespace gut
 {
     template<class B>
