@@ -26,11 +26,11 @@ namespace gut
 		}
 
 		virtual void copy( void* dst,
-			gut::polymorphic_handle& out_handle, std::size_t& out_size ) const;
+			gut::polymorphic_handle& out_handle, std::size_t& out_size ) const = 0;
 
-		virtual void transfer( void* dst, std::size_t& out_size );
-		virtual void destroy();
-		virtual void destroy( std::size_t& out_size );
+		virtual void transfer( void* dst, std::size_t& out_size ) = 0;
+		virtual void destroy() = 0;
+		virtual void destroy( std::size_t& out_size ) = 0;
 
 	protected:
 		void* src_;
