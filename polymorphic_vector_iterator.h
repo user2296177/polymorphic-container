@@ -85,12 +85,12 @@ namespace gut
 
 		B& operator[]( difference_type const i ) noexcept
 		{
-			return *reinterpret_cast<B*>( ( handles_[ i ] )->src() );
+			return *reinterpret_cast<B*>( ( handles_[ iter_idx_ + i ] )->src() );
 		}
 
 		B const& operator[]( difference_type const i ) const noexcept
 		{
-			return *reinterpret_cast<B*>( ( handles_[ i ] )->src() );
+			return *reinterpret_cast<B*>( ( handles_[ iter_idx_ + i ] )->src() );
 		}
 
 		polymorphic_vector_iterator& operator++() noexcept
