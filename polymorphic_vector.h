@@ -26,8 +26,8 @@ namespace gut
 		using container_type = std::vector<gut::polymorphic_handle>;
         using size_type = container_type::size_type;
 		
-		using iterator = gut::polymorphic_vector_iterator<B, container_type&>;
-		using const_iterator = gut::polymorphic_vector_iterator<B, container_type const&>;
+		using iterator = gut::polymorphic_vector_iterator<B, false>;
+		using const_iterator = gut::polymorphic_vector_iterator<B, true>;
 		using reverse_iterator = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
@@ -53,22 +53,22 @@ namespace gut
 
 		reverse_iterator rbegin() noexcept
 		{
-			return reverse_iterator{ iterator{ end() } };
+			return reverse_iterator{ end() };
 		}
 
 		reverse_iterator rend() noexcept
 		{
-			return reverse_iterator{ iterator{ begin() } };
+			return reverse_iterator{ begin() };
 		}
 
 		const_reverse_iterator crbegin() const noexcept
 		{
-			return const_reverse_iterator{ const_iterator{ cend() } };
+			return const_reverse_iterator{ cend() };
 		}
 
 		const_reverse_iterator crend() const noexcept
 		{
-			return const_reverse_iterator{ const_iterator{ cbegin() } };
+			return const_reverse_iterator{ cbegin() };
 		}
 
 		~polymorphic_vector() noexcept;
