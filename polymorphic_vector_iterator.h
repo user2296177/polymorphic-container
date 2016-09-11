@@ -1,6 +1,7 @@
 #ifndef GUT_POLYMORPHIC_VECTOR_ITERATOR_H
 #define GUT_POLYMORPHIC_VECTOR_ITERATOR_H
 
+#include "polymorphic_handle.h"
 #include <utility>
 #include <type_traits>
 #include <cassert>
@@ -85,60 +86,69 @@ namespace gut
 
 		B& operator[]( difference_type const i ) noexcept
 		{
+			assert( i < 0 ? iter_idx_ + i < iter_idx_ : iter_idx_ + i > iter_idx_ );
 			return *reinterpret_cast<B*>( ( handles_[ iter_idx_ + i ] )->src() );
 		}
 
 		B const& operator[]( difference_type const i ) const noexcept
 		{
+			assert( i < 0 ? iter_idx_ + i < iter_idx_ : iter_idx_ + i > iter_idx_ );
 			return *reinterpret_cast<B*>( ( handles_[ iter_idx_ + i ] )->src() );
 		}
 
 		polymorphic_vector_iterator& operator++() noexcept
 		{
+			assert( iter_idx_ + 1 > iter_idx_ );
 			++iter_idx_;
 			return *this;
 		}
 
 		polymorphic_vector_iterator& operator--() noexcept
 		{
+			assert( iter_idx_ - 1 < iter_idx_ );
 			--iter_idx_;
 			return *this;
 		}
 		
 		polymorphic_vector_iterator operator++( int ) noexcept
 		{
+			assert( iter_idx_ + 1 > iter_idx_ );
 			return { handles_, iter_idx_++ };
 		}
 
 		polymorphic_vector_iterator operator--( int ) noexcept
 		{
+			assert( iter_idx_ - 1 < iter_idx_ );
 			return { handles_, iter_idx_-- };
 		}
 
 		polymorphic_vector_iterator& operator+=( difference_type const n ) noexcept
 		{
+			assert( iter_idx_ + n > iter_idx_ );
 			iter_idx_ += n;
 			return *this;
 		}
 
 		polymorphic_vector_iterator& operator-=( difference_type const n ) noexcept
 		{
+			assert( iter_idx_ - n < iter_idx_ );
 			iter_idx_ -= n;
 			return *this;
 		}
 
-		/* free functions */
 		friend polymorphic_vector_iterator operator+(
 			polymorphic_vector_iterator const& lhs, difference_type const n )
 		noexcept
 		{
+			assert( n < 0 ? lhs.iter_idx_ + n < lhs.iter_idx_ : lhs.iter_idx_ + n > lhs.iter_idx_ );
 			return { lhs.handles_, lhs.iter_idx_ + n };
 		}
-
+		
 		friend polymorphic_vector_iterator operator+(
 			difference_type const n, polymorphic_vector_iterator const& rhs )
 		noexcept
 		{
+			assert( n < 0 ? lhs.iter_idx_ + n < lhs.iter_idx_ : lhs.iter_idx_ + n > lhs.iter_idx_ );
 			return { rhs.handles_, rhs.iter_idx_ + n };
 		}
 
@@ -146,6 +156,7 @@ namespace gut
 			polymorphic_vector_iterator const& lhs, difference_type const n )
 		noexcept
 		{
+			assert( n < 0 ? lhs.iter_idx_ < lhs.iter_idx_ + n : lhs.iter_idx_ < lhs.iter_idx_ + n );
 			return { lhs.handles_, lhs.iter_idx_ - n };
 		}
 
@@ -153,6 +164,7 @@ namespace gut
 			difference_type const n, polymorphic_vector_iterator const& rhs )
 		noexcept
 		{
+			assert( n < 0 ? lhs.iter_idx_ < lhs.iter_idx_ + n : lhs.iter_idx_ < lhs.iter_idx_ + n );
 			return { rhs.handles_, rhs.iter_idx_ - n };
 		}
 
