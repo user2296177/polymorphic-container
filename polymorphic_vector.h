@@ -15,12 +15,26 @@ namespace gut
     class polymorphic_vector final
     {
     public:
+		class iterator;
+
 		using value_type = B;
 		using reference = value_type&;
 		using const_reference = value_type const&;
 		using pointer = value_type*;
 		using const_pointer = value_type const*;
-        using size_type = std::vector<gut::polymorphic_handle>::size_type;
+
+		using container_type = std::vector<gut::polymorphic_handle>;
+        using size_type = container_type::size_type;
+
+		iterator begin()
+		{
+			return iterator{ handles_.begin() };
+		}
+
+		iterator end()
+		{
+			return iterator{ handles_.end() };
+		}
 
 		~polymorphic_vector() noexcept;
 
@@ -102,7 +116,6 @@ namespace gut
 				handles_[ j ]->transfer( erase_ptr + new_size, new_size );
 			}
 			handles_.erase( handles_.begin() + i );
-
 			assert( new_size + ( size_ - new_size ) == size_ );
 		}
 

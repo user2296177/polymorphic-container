@@ -13,6 +13,8 @@ namespace gut
 	{
 	public:
 		using value_type = gut::handle_base;
+		using reference = value_type&;
+		using const_reference = value_type const&;
 		using pointer = value_type*;
 		using const_pointer = value_type const*;
 
@@ -38,6 +40,16 @@ namespace gut
 			: is_initialized_{ true }
 		{
 			::new ( &h_ ) gut::handle<T>{ std::move( h ) };
+		}
+
+		reference operator*()
+		{
+			*operator->();
+		}
+
+		const_reference operator*() const
+		{
+			*operator->();
 		}
 
 		pointer operator->()
