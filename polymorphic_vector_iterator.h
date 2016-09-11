@@ -13,10 +13,7 @@ namespace gut
 	private:
 		friend class polymorphic_vector<B>;
 
-		using size_type = typename std::remove_reference_t
-		<
-			ContainerReference
-		>::size_type;
+		using size_type = typename polymorphic_vector<B>::size_type;
 		
 		ContainerReference handles_;
 		size_type iter_idx_;

@@ -43,7 +43,7 @@ namespace gut
 			return const_iterator{ handles_, 0 };
 		}
 
-		const_iterator  cend() const noexcept
+		const_iterator cend() const noexcept
 		{
 			return const_iterator{ handles_, handles_.size() };
 		}
