@@ -1,4 +1,5 @@
-#pragma once
+#ifndef GUT_POLYMORPHIC_VECTOR_ITERATOR_H
+#define GUT_POLYMORPHIC_VECTOR_ITERATOR_H
 
 #include "polymorphic_vector.h"
 #include <utility>
@@ -69,3 +70,4 @@ namespace gut
 		}
 	};
 }
+#endif // GUT_POLYMORPHIC_VECTOR_ITERATOR_H
