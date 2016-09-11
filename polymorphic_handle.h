@@ -42,16 +42,6 @@ namespace gut
 			::new ( &h_ ) gut::handle<T>{ std::move( h ) };
 		}
 
-		reference operator*()
-		{
-			*operator->();
-		}
-
-		const_reference operator*() const
-		{
-			*operator->();
-		}
-
 		pointer operator->()
 		{
 			ensure_initialized_handle();
