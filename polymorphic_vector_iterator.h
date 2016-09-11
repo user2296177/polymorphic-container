@@ -16,7 +16,7 @@ namespace gut
 		iter_t iterator_;
 
 		iterator( iter_t&& iterator )
-			noexcept( std::is_nothrow_move_constructible<iter_t>::value )
+		noexcept( std::is_nothrow_move_constructible<iter_t>::value )
 			: iterator_{ std::move( iterator ) }
 		{}
 	
