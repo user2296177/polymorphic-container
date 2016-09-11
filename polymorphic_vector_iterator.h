@@ -3,6 +3,7 @@
 
 #include <utility>
 #include <type_traits>
+#include <cassert>
 
 namespace gut
 {
@@ -17,9 +18,7 @@ namespace gut
 		friend class polymorphic_vector_iterator<B, true>;
 
 		using polymorphic_vector_t = typename polymorphic_vector<B>;
-
 		using size_type = typename polymorphic_vector_t::size_type;
-		
 		using container_reference = std::conditional_t
 		<
 			is_const,
@@ -34,7 +33,9 @@ namespace gut
 			size_type const iter_idx ) noexcept
 			: handles_{ handles }
 			, iter_idx_{ iter_idx }
-		{}
+		{
+			assert( iter_idx_ <= handles_.size() );
+		}
 
 	public:
 		template
@@ -49,16 +50,18 @@ namespace gut
 				>::value, int
 			> = 0
 		>
-		polymorphic_vector_iterator( PolymorphicVectorIterator&& it )
-			: handles_{ it.handles_ }
-			, iter_idx_{ it.iter_idx_ }
+		polymorphic_vector_iterator( PolymorphicVectorIterator&& it ) noexcept
+			: polymorphic_vector_iterator( it.handles_, it.iter_idx_ )
 		{}
 
 		polymorphic_vector_iterator( polymorphic_vector_iterator&& ) = default;
 		polymorphic_vector_iterator( polymorphic_vector_iterator const& ) = default;
 
-		polymorphic_vector_iterator& operator=( polymorphic_vector_iterator&& ) = default;
-		polymorphic_vector_iterator& operator=( polymorphic_vector_iterator const& ) = default;
+		polymorphic_vector_iterator&
+		operator=( polymorphic_vector_iterator&& ) = default;
+
+		polymorphic_vector_iterator&
+		operator=( polymorphic_vector_iterator const& ) = default;
 
 		B& operator*() noexcept
 		{
@@ -80,12 +83,12 @@ namespace gut
 			return reinterpret_cast<B const*>( ( handles_[ iter_idx_ ] )->src() );
 		}
 
-		B& operator[]( size_type const i ) noexcept
+		B& operator[]( difference_type const i ) noexcept
 		{
 			return *reinterpret_cast<B*>( ( handles_[ i ] )->src() );
 		}
 
-		B const& operator[]( size_type const i ) const noexcept
+		B const& operator[]( difference_type const i ) const noexcept
 		{
 			return *reinterpret_cast<B*>( ( handles_[ i ] )->src() );
 		}
@@ -96,36 +99,61 @@ namespace gut
 			return *this;
 		}
 
-		polymorphic_vector_iterator operator++( int ) noexcept
-		{
-			polymorphic_vector_iterator self{ *this };
-			++iter_idx_;
-			return self;
-		}
-
-		polymorphic_vector_iterator& operator+=( size_type const n ) noexcept
-		{
-			iter_idx_ += n;
-			return *this;
-		}
-
 		polymorphic_vector_iterator& operator--() noexcept
 		{
 			--iter_idx_;
 			return *this;
 		}
+		
+		polymorphic_vector_iterator operator++( int ) noexcept
+		{
+			return { handles_, iter_idx_++ };
+		}
 
 		polymorphic_vector_iterator operator--( int ) noexcept
 		{
-			polymorphic_vector_iterator self{ *this };
-			--iter_idx_;
-			return self;
+			return { handles_, iter_idx_-- };
 		}
 
-		polymorphic_vector_iterator& operator-=( size_type const n ) noexcept
+		polymorphic_vector_iterator& operator+=( difference_type const n ) noexcept
+		{
+			iter_idx_ += n;
+			return *this;
+		}
+
+		polymorphic_vector_iterator& operator-=( difference_type const n ) noexcept
 		{
 			iter_idx_ -= n;
 			return *this;
+		}
+
+		/* free functions */
+		friend polymorphic_vector_iterator operator+(
+			polymorphic_vector_iterator const& lhs, difference_type const n )
+		noexcept
+		{
+			return { lhs.handles_, lhs.iter_idx_ + n };
+		}
+
+		friend polymorphic_vector_iterator operator+(
+			difference_type const n, polymorphic_vector_iterator const& rhs )
+		noexcept
+		{
+			return { rhs.handles_, rhs.iter_idx_ + n };
+		}
+
+		friend polymorphic_vector_iterator operator-(
+			polymorphic_vector_iterator const& lhs, difference_type const n )
+		noexcept
+		{
+			return { lhs.handles_, lhs.iter_idx_ - n };
+		}
+
+		friend polymorphic_vector_iterator operator-(
+			difference_type const n, polymorphic_vector_iterator const& rhs )
+		noexcept
+		{
+			return { rhs.handles_, rhs.iter_idx_ - n };
 		}
 
 		friend bool operator==( polymorphic_vector_iterator const& lhs,
