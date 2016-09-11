@@ -1,10 +1,9 @@
 #ifndef GUT_POLYMORPHIC_VECTOR_ITERATOR_H
 #define GUT_POLYMORPHIC_VECTOR_ITERATOR_H
 
-#include "polymorphic_handle.h"
+#include <cassert>
 #include <utility>
 #include <type_traits>
-#include <cassert>
 
 namespace gut
 {
@@ -51,7 +50,7 @@ namespace gut
 				>::value, int
 			> = 0
 		>
-		polymorphic_vector_iterator( PolymorphicVectorIterator&& it ) noexcept
+		polymorphic_vector_iterator( PolymorphicVectorIterator const& it ) noexcept
 			: polymorphic_vector_iterator( it.handles_, it.iter_idx_ )
 		{}
 
