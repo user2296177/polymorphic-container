@@ -28,12 +28,12 @@ namespace gut
 
 		iterator begin()
 		{
-			return iterator{ handles_.begin() };
+			return iterator{ handles_, 0 };
 		}
 
 		iterator end()
 		{
-			return iterator{ handles_.end() };
+			return iterator{ handles_, handles_.size() };
 		}
 
 		~polymorphic_vector() noexcept;

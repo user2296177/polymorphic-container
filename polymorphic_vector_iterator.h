@@ -12,61 +12,104 @@ namespace gut
 	private:
 		friend class polymorphic_vector<B>;
 
-		using iter_t = typename polymorphic_vector<B>::container_type::iterator;
-		iter_t iterator_;
+		using container_type = typename polymorphic_vector<B>::container_type;
+		using size_type = typename container_type::size_type;
+		
+		container_type& handles_;
+		size_type iter_idx_;
 
-		iterator( iter_t&& iterator )
-		noexcept( std::is_nothrow_move_constructible<iter_t>::value )
-			: iterator_{ std::move( iterator ) }
+		iterator( container_type& handles, size_type const iter_idx ) noexcept
+			: handles_{ handles }
+			, iter_idx_{ iter_idx }
 		{}
 	
 	public:
-		decltype( auto ) operator*()
-		noexcept( noexcept( *std::declval<iter_t>() ) )
+		B& operator*() noexcept
 		{
-			return *reinterpret_cast<B*>( ( *iterator_ )->src() );
+			return *reinterpret_cast<B*>( ( handles_[ iter_idx_ ] )->src() );
+		}
+		
+		B const& operator*() const noexcept
+		{
+			return *reinterpret_cast<B const*>( ( handles_[ iter_idx_ ] )->src() );
 		}
 
-		iterator& operator++()
-		noexcept( noexcept( ++std::declval<iter_t>() ) )
+		B& operator[]( size_type const i )
 		{
-			++iterator_;
+			return *reinterpret_cast<B*>( ( handles_[ i ] )->src() );
+		}
+
+		B const& operator[]( size_type const i ) const
+		{
+			return *reinterpret_cast<B*>( ( handles_[ i ] )->src() );
+		}
+
+		iterator& operator++() noexcept
+		{
+			++iter_idx_;
 			return *this;
 		}
 
-		iterator operator++( int )
-		noexcept( noexcept( std::declval<iter_t>()++ ) )
+		iterator operator++( int ) noexcept
 		{
 			iterator self{ *this };
-			++iterator_;
+			++iter_idx_;
 			return self;
 		}
 
-		iterator& operator--()
-		noexcept( noexcept( --std::declval<iter_t>() ) )
+		iterator& operator--() noexcept
 		{
-			--iterator_;
+			--iter_idx_;
 			return *this;
 		}
 
-		iterator operator--( int )
-		noexcept( noexcept( std::declval<iter_t>()-- ) )
+		iterator operator--( int ) noexcept
 		{
 			iterator self{ *this };
-			--iterator_;
+			--iter_idx_;
 			return self;
 		}
 
 		friend bool operator==( iterator const& lhs, iterator const& rhs )
-		noexcept( noexcept( std::declval<iter_t>() == std::declval<iter_t>() ) )
+		noexcept
 		{
-			return lhs.iterator_ == rhs.iterator_;
+			return lhs.iter_idx_ == rhs.iter_idx_ &&
+				&lhs.handles_ == &rhs.handles_;
 		}
 
 		friend bool operator!=( iterator const& lhs, iterator const& rhs )
-		noexcept( noexcept( std::declval<iter_t>() == std::declval<iter_t>() ) )
+		noexcept
 		{
-			return lhs.iterator_ != rhs.iterator_;
+			return lhs.iter_idx_ != rhs.iter_idx_ ||
+				&lhs.handles_ != &rhs.handles_;
+		}
+
+		friend bool operator<( iterator const& lhs, iterator const& rhs )
+		noexcept
+		{
+			return lhs.iter_idx_ < rhs.iter_idx_ &&
+				&lhs.handles_ == &rhs.handles_;
+		}
+
+		friend bool operator<=( iterator const& lhs, iterator const& rhs )
+		noexcept
+		{
+			return lhs.iter_idx_ <= rhs.iter_idx_ &&
+				&lhs.handles_ == &rhs.handles_;
+		}
+
+		friend bool operator>( iterator const& lhs, iterator const& rhs )
+		noexcept
+		{
+			return lhs.iter_idx_ > rhs.iter_idx_ &&
+				&lhs.handles_ == &rhs.handles_;
+		}
+
+		friend bool operator>=( iterator const& lhs, iterator const& rhs )
+		noexcept
+		{
+			return lhs.iter_idx_ >= rhs.iter_idx_ &&
+				&lhs.handles_ == &rhs.handles_;
 		}
 	};
 }
