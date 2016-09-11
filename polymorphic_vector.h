@@ -26,12 +26,12 @@ namespace gut
 		using container_type = std::vector<gut::polymorphic_handle>;
         using size_type = container_type::size_type;
 
-		iterator begin()
+		iterator begin() noexcept
 		{
 			return iterator{ handles_, 0 };
 		}
 
-		iterator end()
+		iterator end() noexcept
 		{
 			return iterator{ handles_, handles_.size() };
 		}

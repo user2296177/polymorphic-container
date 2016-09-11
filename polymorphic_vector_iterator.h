@@ -34,12 +34,12 @@ namespace gut
 			return *reinterpret_cast<B const*>( ( handles_[ iter_idx_ ] )->src() );
 		}
 
-		B& operator[]( size_type const i )
+		B& operator[]( size_type const i ) noexcept
 		{
 			return *reinterpret_cast<B*>( ( handles_[ i ] )->src() );
 		}
 
-		B const& operator[]( size_type const i ) const
+		B const& operator[]( size_type const i ) const noexcept
 		{
 			return *reinterpret_cast<B*>( ( handles_[ i ] )->src() );
 		}
@@ -70,43 +70,37 @@ namespace gut
 			return self;
 		}
 
-		friend bool operator==( iterator const& lhs, iterator const& rhs )
-		noexcept
+		friend bool operator==( iterator const& lhs, iterator const& rhs ) noexcept
 		{
 			return lhs.iter_idx_ == rhs.iter_idx_ &&
 				&lhs.handles_ == &rhs.handles_;
 		}
 
-		friend bool operator!=( iterator const& lhs, iterator const& rhs )
-		noexcept
+		friend bool operator!=( iterator const& lhs, iterator const& rhs ) noexcept
 		{
 			return lhs.iter_idx_ != rhs.iter_idx_ ||
 				&lhs.handles_ != &rhs.handles_;
 		}
 
-		friend bool operator<( iterator const& lhs, iterator const& rhs )
-		noexcept
+		friend bool operator<( iterator const& lhs, iterator const& rhs ) noexcept
 		{
 			return lhs.iter_idx_ < rhs.iter_idx_ &&
 				&lhs.handles_ == &rhs.handles_;
 		}
 
-		friend bool operator<=( iterator const& lhs, iterator const& rhs )
-		noexcept
+		friend bool operator<=( iterator const& lhs, iterator const& rhs ) noexcept
 		{
 			return lhs.iter_idx_ <= rhs.iter_idx_ &&
 				&lhs.handles_ == &rhs.handles_;
 		}
 
-		friend bool operator>( iterator const& lhs, iterator const& rhs )
-		noexcept
+		friend bool operator>( iterator const& lhs, iterator const& rhs ) noexcept
 		{
 			return lhs.iter_idx_ > rhs.iter_idx_ &&
 				&lhs.handles_ == &rhs.handles_;
 		}
 
-		friend bool operator>=( iterator const& lhs, iterator const& rhs )
-		noexcept
+		friend bool operator>=( iterator const& lhs, iterator const& rhs ) noexcept
 		{
 			return lhs.iter_idx_ >= rhs.iter_idx_ &&
 				&lhs.handles_ == &rhs.handles_;
