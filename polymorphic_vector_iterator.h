@@ -156,7 +156,7 @@ namespace gut
 			polymorphic_vector_iterator const& lhs, difference_type const n )
 		noexcept
 		{
-			assert( n < 0 ? lhs.iter_idx_ < lhs.iter_idx_ + n : lhs.iter_idx_ < lhs.iter_idx_ + n );
+			assert( n < 0 ? lhs.iter_idx_ - n > lhs.iter_idx_ : lhs.iter_idx_ - n < lhs.iter_idx_ );
 			return { lhs.handles_, lhs.iter_idx_ - n };
 		}
 
@@ -164,7 +164,7 @@ namespace gut
 			difference_type const n, polymorphic_vector_iterator const& rhs )
 		noexcept
 		{
-			assert( n < 0 ? lhs.iter_idx_ < lhs.iter_idx_ + n : lhs.iter_idx_ < lhs.iter_idx_ + n );
+			assert( n < 0 ? lhs.iter_idx_ - n > lhs.iter_idx_ : lhs.iter_idx_ - n < lhs.iter_idx_ );
 			return { rhs.handles_, rhs.iter_idx_ - n };
 		}
 
