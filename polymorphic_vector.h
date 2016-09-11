@@ -8,6 +8,7 @@
 #include <new>
 #include <vector>
 #include <utility>
+#include <iterator>
 #include <cassert>
 
 namespace gut
@@ -27,6 +28,8 @@ namespace gut
 		
 		using iterator = gut::polymorphic_vector_iterator<B, container_type&>;
 		using const_iterator = gut::polymorphic_vector_iterator<B, container_type const&>;
+		using reverse_iterator = std::reverse_iterator<iterator>;
+		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
 		iterator begin() noexcept
 		{
@@ -46,6 +49,26 @@ namespace gut
 		const_iterator cend() const noexcept
 		{
 			return const_iterator{ handles_, handles_.size() };
+		}
+
+		reverse_iterator rbegin() noexcept
+		{
+			return reverse_iterator{ iterator{ end() } };
+		}
+
+		reverse_iterator rend() noexcept
+		{
+			return reverse_iterator{ iterator{ begin() } };
+		}
+
+		const_reverse_iterator crbegin() const noexcept
+		{
+			return const_reverse_iterator{ const_iterator{ cend() } };
+		}
+
+		const_reverse_iterator crend() const noexcept
+		{
+			return const_reverse_iterator{ const_iterator{ cbegin() } };
 		}
 
 		~polymorphic_vector() noexcept;

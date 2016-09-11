@@ -9,6 +9,7 @@ namespace gut
 
 	template<class B, class ContainerReference>
 	class polymorphic_vector_iterator final
+		: public std::iterator<std::random_access_iterator_tag, B>
 	{
 	private:
 		friend class polymorphic_vector<B>;
@@ -23,7 +24,7 @@ namespace gut
 			: handles_{ handles }
 			, iter_idx_{ iter_idx }
 		{}
-	
+
 	public:
 		polymorphic_vector_iterator( polymorphic_vector_iterator&& ) = default;
 		polymorphic_vector_iterator( polymorphic_vector_iterator const& ) = default;
@@ -39,6 +40,16 @@ namespace gut
 		B const& operator*() const noexcept
 		{
 			return *reinterpret_cast<B const*>( ( handles_[ iter_idx_ ] )->src() );
+		}
+
+		B* operator->() noexcept
+		{
+			return reinterpret_cast<B*>( ( handles_[ iter_idx_ ] )->src() );
+		}
+
+		B const* operator->() const noexcept
+		{
+			return reinterpret_cast<B const*>( ( handles_[ iter_idx_ ] )->src() );
 		}
 
 		B& operator[]( size_type const i ) noexcept
@@ -64,6 +75,12 @@ namespace gut
 			return self;
 		}
 
+		polymorphic_vector_iterator& operator+=( size_type const n ) noexcept
+		{
+			iter_idx_ += n;
+			return *this;
+		}
+
 		polymorphic_vector_iterator& operator--() noexcept
 		{
 			--iter_idx_;
@@ -75,6 +92,12 @@ namespace gut
 			polymorphic_vector_iterator self{ *this };
 			--iter_idx_;
 			return self;
+		}
+
+		polymorphic_vector_iterator& operator-=( size_type const n ) noexcept
+		{
+			iter_idx_ -= n;
+			return *this;
 		}
 
 		friend bool operator==( polymorphic_vector_iterator const& lhs,
