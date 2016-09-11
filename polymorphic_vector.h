@@ -4,6 +4,7 @@
 #include "handle_base.h"
 #include "handle.h"
 #include "polymorphic_handle.h"
+#include "polymorphic_vector_iterator.h"
 #include <new>
 #include <vector>
 #include <utility>
@@ -15,8 +16,6 @@ namespace gut
     class polymorphic_vector final
     {
     public:
-		class iterator;
-
 		using value_type = B;
 		using reference = value_type&;
 		using const_reference = value_type const&;
@@ -25,6 +24,9 @@ namespace gut
 
 		using container_type = std::vector<gut::polymorphic_handle>;
         using size_type = container_type::size_type;
+		
+		using iterator = gut::polymorphic_vector_iterator<B, container_type&>;
+		using const_iterator = gut::polymorphic_vector_iterator<B, container_type const&>;
 
 		iterator begin() noexcept
 		{
@@ -34,6 +36,16 @@ namespace gut
 		iterator end() noexcept
 		{
 			return iterator{ handles_, handles_.size() };
+		}
+
+		const_iterator cbegin() const noexcept
+		{
+			return const_iterator{ handles_, 0 };
+		}
+
+		const_iterator  cend() const noexcept
+		{
+			return const_iterator{ handles_, handles_.size() };
 		}
 
 		~polymorphic_vector() noexcept;
