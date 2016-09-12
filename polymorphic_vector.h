@@ -138,6 +138,7 @@ namespace gut
 			if ( i == 0 )
 			{
 				emplace_offset_ = 0;
+				sizeof_prev_ = handles_[ j ]->size();
 			}
 			else
 			{
