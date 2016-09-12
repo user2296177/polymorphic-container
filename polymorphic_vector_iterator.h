@@ -18,7 +18,7 @@ namespace gut
 		friend class polymorphic_vector<B>;
 		friend class polymorphic_vector_iterator<B, true>;
 
-		using iterator_traits_t = std::iterator_traits<polymorphic_vector_iterator>;
+		using difference_type = typename std::iterator<std::random_access_iterator_tag, B>::difference_type;
 		using polymorphic_vector_t = gut::polymorphic_vector<B>;
 		using size_type = typename polymorphic_vector_t::size_type;
 		using container_reference = std::conditional_t
