@@ -38,42 +38,23 @@ namespace gut
 		using reverse_iterator = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
 
-		iterator begin() noexcept
-		{
-			return iterator{ handles_, 0 };
-		}
-		iterator end() noexcept
-		{
-			return iterator{ handles_, handles_.size() };
-		}
-		
-		const_iterator cbegin() const noexcept
-		{
-			return const_iterator{ handles_, 0 };
-		}
-		const_iterator cend() const noexcept
-		{
-			return const_iterator{ handles_, handles_.size() };
-		}
+		// iterators - complete
+		iterator begin() noexcept;
+		const_iterator begin() const noexcept;
+		iterator end() noexcept;
+		const_iterator end() const noexcept;
 
-		reverse_iterator rbegin() noexcept
-		{
-			return reverse_iterator{ end() };
-		}
-		reverse_iterator rend() noexcept
-		{
-			return reverse_iterator{ begin() };
-		}
+		reverse_iterator rbegin() noexcept;
+		const_reverse_iterator rbegin() const noexcept;
+		reverse_iterator rend() noexcept;
+		const_reverse_iterator rend() const noexcept;
 
-		const_reverse_iterator crbegin() const noexcept
-		{
-			return const_reverse_iterator{ cend() };
-		}
-		const_reverse_iterator crend() const noexcept
-		{
-			return const_reverse_iterator{ cbegin() };
-		}
+		const_iterator cbegin() const noexcept;
+		const_iterator cend() const noexcept;
+		const_reverse_iterator crbegin() const noexcept;
+		const_reverse_iterator crend() const noexcept;
 
+		// destructor - complete
 		~polymorphic_vector() noexcept;
 
 		template
@@ -93,6 +74,7 @@ namespace gut
 		polymorphic_vector( polymorphic_vector const& other );
 		polymorphic_vector& operator=( polymorphic_vector const& other );
 
+		// modifiers
 		template
 		<
 			class D,
@@ -114,9 +96,8 @@ namespace gut
 		void pop_back();
 
 		void clear() noexcept;
-		void swap( polymorphic_vector& other ) noexcept;
-
-		// element access
+		
+		// element access - complete
 		reference operator[]( size_type const i ) noexcept;
 		const_reference operator[]( size_type const i ) const noexcept;
 
@@ -129,12 +110,28 @@ namespace gut
 		reference back() noexcept;
 		const_reference back() const noexcept;
 
-		// capacity
+		// capacity - missing reserve
+		void reserve( size_type const n );
 		size_type size() const noexcept;
 		bool empty() const noexcept;
 
+		// specialized algorithms - complete
+		void swap( polymorphic_vector& other ) noexcept;
+
 	private:
 		using byte = unsigned char;
+
+		void copy( polymorphic_vector const& other )
+		{
+			gut::polymorphic_handle out_h;
+			for ( gut::polymorphic_handle const& h : other.handles_ )
+			{
+				h->copy( data_ +
+					( reinterpret_cast<byte*>( h->src() ) - other.data_ ), out_h );
+
+				handles_.emplace_back( std::move( out_h ) );
+			}
+		}
 
 		void erase_range( size_type const i, size_type const j )
 		{
@@ -176,7 +173,7 @@ namespace gut
 			}
 		}
 
-		template<class D> // remember to simply transfer loop, extract into function
+		template<class D> // TODO: extract transfer loop into function
 		std::decay_t<D>* next_alloc_ptr()
 		{
 			using der_t = std::decay_t<D>;
@@ -241,6 +238,9 @@ namespace gut
 	};
 }
 
+//////////////////////////////////////////////////////////////////////////////////
+// destructor
+//////////////////////////////////////////////////////////////////////////////////
 template<class B>
 gut::polymorphic_vector<B>::~polymorphic_vector() noexcept
 {
@@ -250,7 +250,9 @@ gut::polymorphic_vector<B>::~polymorphic_vector() noexcept
 	}
 	std::free( data_ );
 }
-
+//////////////////////////////////////////////////////////////////////////////////
+// constructors
+//////////////////////////////////////////////////////////////////////////////////
 template<class B>
 template
 <
@@ -292,7 +294,7 @@ gut::polymorphic_vector<B>::polymorphic_vector( polymorphic_vector&& other )
 noexcept
 	: handles_{ std::move( other.handles_ ) }
 	, data_{ other.data_ }
-	, size_{ other.size_ }
+	, emplace_offset_{ other.emplace_offset_ }
 	, capacity_{ other.capacity_ }
 {
 	other.data_ = nullptr;
@@ -312,7 +314,7 @@ gut::polymorphic_vector<B>::operator=( polymorphic_vector&& other ) noexcept
 		std::free( data_ );
 		data_ = other.data_;
 		other.data_ = nullptr;
-		size_ = other.size_;
+		emplace_offset_ = other.emplace_offset_;
 		capacity_ = other.capacity_;
 	}
 	return *this;
@@ -321,20 +323,23 @@ gut::polymorphic_vector<B>::operator=( polymorphic_vector&& other ) noexcept
 template<class B>
 inline
 gut::polymorphic_vector<B>::polymorphic_vector( polymorphic_vector const& other )
-	: data_{ reinterpret_cast<byte*>( std::malloc( other.size_ ) ) }
-	, size_{ 0 }
+	: data_{ reinterpret_cast<byte*>( std::malloc( other.emplace_offset_ ) ) }
+	, emplace_offset_{ 0 }
 	, capacity_{ 0 }
 {
 	if ( data_ )
 	{
+		emplace_offset_ = other.emplace_offset_;
+		capacity_ = other.emplace_offset_;
+
 		gut::polymorphic_handle hnd;
 		for ( gut::polymorphic_handle const& h : other.handles_ )
 		{
-			h->copy( data_ + size_, hnd, size_ );
+			h->copy( data_ +
+				( reinterpret_cast<byte*>( h->src() ) - other.data_ ), hnd );
+			
 			handles_.emplace_back( std::move( hnd ) );
 		}
-		capacity_ = other.size_;
-		assert( capacity_ == size_ );
 	}
 	else
 	{
@@ -348,35 +353,123 @@ gut::polymorphic_vector<B>::operator=( polymorphic_vector const& other )
 {
 	if ( this != &other )
 	{
-		byte* new_data = reinterpret_cast<byte*>( std::malloc( other.size_ ) );
-		if ( new_data )
+		if ( emplace_offset_ >= other.emplace_offset_ )
 		{
-			for ( gut::polymorphic_handle& h : handles_ )
-			{
-				h->destroy();
-			}
-
-			std::free( data_ );
-			data_ = new_data;
-			size_ = 0;
-			capacity_ = other.size_;
-
-			gut::polymorphic_handle hnd;
-			for ( gut::polymorphic_handle const& h : other.handles_ )
-			{
-				h->copy( data_ + size_, hnd, size_ );
-				handles_.emplace_back( std::move( hnd ) );
-			}
-			assert( capacity_ == size_ );
+			clear();
 		}
 		else
 		{
-			throw std::bad_alloc{};
+			byte* new_data = reinterpret_cast<byte*>(
+				std::malloc( other.emplace_offset_ ) );
+
+			if ( new_data )
+			{
+				clear();
+				data_ = new_data;
+				capacity_ = other.emplace_offset_;
+			}
+			else
+			{
+				throw std::bad_alloc{};
+			}
 		}
+		
+		emplace_offset_ = other.emplace_offset_;
+		sizeof_prev_ = other.sizeof_prev_;
+		copy( other );
 	}
 	return *this;
 }
 
+//////////////////////////////////////////////////////////////////////////////////
+// iterators
+//////////////////////////////////////////////////////////////////////////////////
+template<class B>
+inline typename gut::polymorphic_vector<B>::iterator
+gut::polymorphic_vector<B>::begin() noexcept
+{
+	return { handles_, 0 };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::const_iterator
+gut::polymorphic_vector<B>::begin() const noexcept
+{
+	return { handles_, 0 };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::iterator
+gut::polymorphic_vector<B>::end() noexcept
+{
+	return { handles_, handles_.size() };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::const_iterator
+gut::polymorphic_vector<B>::end() const noexcept
+{
+	return { handles_, handles_.size() };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::reverse_iterator
+gut::polymorphic_vector<B>::rbegin() noexcept
+{
+	return reverse_iterator{ end() };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::const_reverse_iterator
+gut::polymorphic_vector<B>::rbegin() const noexcept
+{
+	return const_reverse_iterator{ end() };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::reverse_iterator
+gut::polymorphic_vector<B>::rend() noexcept
+{
+	return reverse_iterator{ begin() };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::const_reverse_iterator
+gut::polymorphic_vector<B>::rend() const noexcept
+{
+	return const_reverse_iterator{ begin() };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::const_iterator
+gut::polymorphic_vector<B>::cbegin() const noexcept
+{
+	return { handles_, 0 };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::const_iterator
+gut::polymorphic_vector<B>::cend() const noexcept
+{
+	return { handles_, handles_.size() };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::const_reverse_iterator
+gut::polymorphic_vector<B>::crbegin() const noexcept
+{
+	return const_reverse_iterator{ cend() };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::const_reverse_iterator
+gut::polymorphic_vector<B>::crend() const noexcept
+{
+	return const_reverse_iterator{ cbegin() };
+}
+//////////////////////////////////////////////////////////////////////////////////
+// modifiers
+//////////////////////////////////////////////////////////////////////////////////
 template<class B>
 template
 <
@@ -398,7 +491,6 @@ template<class B>
 inline void gut::polymorphic_vector<B>::pop_back()
 {
     gut::polymorphic_handle& h{ handles_.back() };
-
 	emplace_offset_ = reinterpret_cast<byte*>( h->src() ) - data_;
 	h->destroy();
 	handles_.pop_back();
@@ -411,21 +503,9 @@ inline void gut::polymorphic_vector<B>::clear() noexcept
 	{
 		h->destroy();
 	}
-
 	emplace_offset_ = 0;
-	handles_.clear();
+	handles_.erase( handles_.begin(), handles_.end() );
 }
-
-template<class B>
-inline void
-gut::polymorphic_vector<B>::swap( polymorphic_vector<B>& other ) noexcept
-{
-	std::swap( handles_, other.handles_ );
-	std::swap( data_, other.data_ );
-	std::swap( size_, other.size_ );
-	std::swap( capacity_, other.capacity_ );
-}
-
 //////////////////////////////////////////////////////////////////////////////////
 // element access
 //////////////////////////////////////////////////////////////////////////////////
@@ -486,7 +566,6 @@ gut::polymorphic_vector<B>::back() const noexcept
 {
 	return *reinterpret_cast<const_pointer>( handles_[ handles_.size() - 1 ]->src() );
 }
-
 //////////////////////////////////////////////////////////////////////////////////
 // capacity
 //////////////////////////////////////////////////////////////////////////////////
@@ -502,9 +581,20 @@ inline bool gut::polymorphic_vector<B>::empty() const noexcept
 {
 	return handles_.empty();
 }
-
+//////////////////////////////////////////////////////////////////////////////////
+// specialized algorithms
+//////////////////////////////////////////////////////////////////////////////////
+template<class B>
+inline void
+gut::polymorphic_vector<B>::swap( polymorphic_vector<B>& other ) noexcept
+{
+	std::swap( handles_, other.handles_ );
+	std::swap( data_, other.data_ );
+	std::swap( size_, other.size_ );
+	std::swap( capacity_, other.capacity_ );
+}
 ///////////////////////////////////////////////////////////////////////////////
-// FREE FUNCTIONS
+// free functions
 ///////////////////////////////////////////////////////////////////////////////
 template <class B>
 void swap( gut::polymorphic_vector<B>& x, gut::polymorphic_vector<B>& y )
