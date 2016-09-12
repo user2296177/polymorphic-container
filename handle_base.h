@@ -36,7 +36,6 @@ namespace gut
 		handle_base& operator=( handle_base const& ) = delete;
 
 		virtual void destroy() = 0;
-		virtual void destroy( std::size_t& out_size ) = 0;
 		virtual void transfer( void* dst, std::size_t& out_size ) = 0;
 		virtual void copy( void* dst,
 			polymorphic_handle& out_handle, std::size_t& out_size ) const = 0;

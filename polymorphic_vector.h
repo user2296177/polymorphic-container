@@ -137,21 +137,23 @@ namespace gut
 		void unchecked_erase( size_type const i, size_type const j )
 		{
 			gut::polymorphic_handle& h{ handles_[ i ] };
-			byte* erase_ptr{ reinterpret_cast<byte*>( h->src() ) - h->padding() };
-            size_ = reinterpret_cast<std::uintptr_t>( erase_ptr ) - reinterpret_cast<std::uintptr_t>( data_ );
+
+            size_ =
+                reinterpret_cast<std::uintptr_t>( reinterpret_cast<byte*>( h->src() ) - h->padding() ) -
+                reinterpret_cast<std::uintptr_t>( data_ );
 
 			for ( size_type k{ i }; k != j; ++k )
-			{
+            {
 				handles_[ k ]->destroy();
-			}
+            }
 
 			auto handles_begin = handles_.begin();
 			handles_.erase( handles_begin + i, handles_begin + j );
 
 			for ( size_type k{ i }, sz{ handles_.size() }; k != sz; ++k )
-			{
+            {
 				handles_[ k ]->transfer( data_ + size_, size_ );
-			}
+            }
 		}
 
     private:
@@ -366,10 +368,10 @@ template<class B>
 inline void
 gut::polymorphic_vector<B>::pop_back()
 {
-	size_type removed_size;
-	handles_.back()->destroy( removed_size );
+    gut::polymorphic_handle& h{ handles_.back() };
+    size_ = reinterpret_cast<std::uintptr_t>( reinterpret_cast<byte*>( h->src() ) - h->padding() ) - reinterpret_cast<std::uintptr_t>( data_ );
+	h->destroy();
 	handles_.pop_back();
-	size_ -= removed_size;
 }
 
 template<class B>

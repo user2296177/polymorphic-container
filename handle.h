@@ -60,14 +60,6 @@ namespace gut
 			src_ = nullptr;
 		}
 
-		virtual void destroy( std::size_t& out_size )
-		noexcept( std::is_nothrow_destructible<T>::value ) override
-		{
-			reinterpret_cast<T*>( src_ )->~T();
-			src_ = nullptr;
-			out_size += sizeof( T ) + padding_;
-		}
-
 		virtual void transfer( void* dst, std::size_t& out_size )
 		noexcept( noexcept(
 				std::declval<handle>().transfer( is_moveable, dst ) ) ) override
