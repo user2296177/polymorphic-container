@@ -65,7 +65,7 @@ namespace gut
 		{
 			reinterpret_cast<T*>( src_ )->~T();
 			src_ = nullptr;
-			out_size = sizeof( T ) + padding_;
+			out_size += sizeof( T ) + padding_;
 		}
 
 		virtual void transfer( void* dst, std::size_t& out_size )
@@ -74,7 +74,7 @@ namespace gut
 		{
 			padding_ = gut::calculate_padding<T>( dst );
 			transfer( is_moveable, reinterpret_cast<byte*>( dst ) + padding_ );
-			out_size = sizeof( T ) + padding_;
+			out_size += sizeof( T ) + padding_;
 		}
 
 		virtual void copy( void* dst,
@@ -87,20 +87,24 @@ namespace gut
 				*reinterpret_cast<T*>( src_ )
 			} };
 			out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
-			out_size = sizeof( T ) + padding_;
+			out_size += sizeof( T ) + padding_;
 		}
 
 	private:
 		void transfer( std::true_type, void* dst )
-		noexcept( std::is_nothrow_move_assignable<T>::value )
+		noexcept( std::is_nothrow_move_constructible<T>::value )
 		{
-			src_ = ::new ( dst ) T{ std::move( *reinterpret_cast<T*>( src_ ) ) };
+			T* old_src{ reinterpret_cast<T*>( src_ ) };
+			src_ = ::new ( dst ) T{ *old_src };
+			old_src->~T();
 		}
 
 		void transfer( std::false_type, void* dst )
-		noexcept( std::is_nothrow_copy_assignable<T>::value )
+		noexcept( std::is_nothrow_copy_constructible<T>::value )
 		{
-			src_ = ::new ( dst ) T{ *reinterpret_cast<T*>( src_ ) };
+		    T* old_src{ reinterpret_cast<T*>( src_ ) };
+			src_ = ::new ( dst ) T{ *old_src };
+			old_src->~T();
 		}
 	};
 }

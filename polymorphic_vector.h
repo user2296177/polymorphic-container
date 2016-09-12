@@ -9,8 +9,8 @@
 #include <vector>
 #include <utility>
 #include <iterator>
-#include <cstdlib>
 #include <cassert>
+#include <cstdlib>
 
 namespace gut
 {
@@ -138,26 +138,20 @@ namespace gut
 		{
 			gut::polymorphic_handle& h{ handles_[ i ] };
 			byte* erase_ptr{ reinterpret_cast<byte*>( h->src() ) - h->padding() };
-			size_type destroyed_size{ 0 };
+            size_ = reinterpret_cast<std::uintptr_t>( erase_ptr ) - reinterpret_cast<std::uintptr_t>( data_ );
 
-			size_type erase_size{ 0 };
 			for ( size_type k{ i }; k != j; ++k )
 			{
-				handles_[ k ]->destroy( destroyed_size );
-				erase_size += destroyed_size;
+				handles_[ k ]->destroy();
 			}
 
-			size_ -= erase_size;
 			auto handles_begin = handles_.begin();
 			handles_.erase( handles_begin + i, handles_begin + j );
 
-			size_type new_size{ 0 };
 			for ( size_type k{ i }, sz{ handles_.size() }; k != sz; ++k )
 			{
-				handles_[ k ]->transfer( erase_ptr + new_size, destroyed_size );
-				new_size += destroyed_size;
+				handles_[ k ]->transfer( data_ + size_, size_ );
 			}
-			/// TODO: ensure that size_ is left in the proper state here
 		}
 
     private:
