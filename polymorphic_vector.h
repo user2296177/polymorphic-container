@@ -24,13 +24,13 @@ namespace gut
 	class polymorphic_vector final
 	{
 	public:
+		using container_type = std::vector<gut::polymorphic_handle>;
+		
 		using value_type = B;
 		using reference = value_type&;
 		using const_reference = value_type const&;
 		using pointer = value_type*;
 		using const_pointer = value_type const*;
-
-		using container_type = std::vector<gut::polymorphic_handle>;
 
 		using iterator = gut::polymorphic_vector_iterator<B, false>;
 		using const_iterator = gut::polymorphic_vector_iterator<B, true>;
@@ -108,7 +108,7 @@ namespace gut
 		size_type size() const noexcept;
 		bool empty() const noexcept;
 
-	public:
+	private:
 		using byte = unsigned char;
 
 		void copy( polymorphic_vector const& other )
@@ -478,16 +478,16 @@ template<class B>
 inline typename gut::polymorphic_vector<B>::iterator
 gut::polymorphic_vector<B>::erase( const_iterator position )
 {
-	// TODO: finish implementing
-	return iterator{ handles_, 0 };
+	erase_range( position.iter_idx_, position.iter_idx_ + 1 );
+	return { handles_, position.iter_idx_ };
 }
 
 template<class B>
 inline typename gut::polymorphic_vector<B>::iterator
 gut::polymorphic_vector<B>::erase( const_iterator begin, const_iterator end )
 {
-	// TODO: finish implementing
-	return iterator{ handles_ , 0 };
+	erase_range( begin.iter_idx_, end.iter_idx_ );
+	return { handles_ , begin.iter_idx_ };
 }
 
 template<class B>
