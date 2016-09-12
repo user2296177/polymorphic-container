@@ -23,69 +23,111 @@ namespace gut
 			bool, std::is_move_constructible<T>::value
 		> is_moveable{};
 
-		handle( T* src ) noexcept
-			: handle_base( src )
-		{}
+		~handle() = default;
 
-		handle( handle&& other ) noexcept
-			: handle_base( other.src_ )
-		{
-			other.src_ = nullptr;
-		}
+		handle( T* src ) noexcept;
 
-		handle& operator=( handle&& other ) noexcept
-		{
-			if ( this != &other )
-			{
-				src_ = other.src_;
-				other.src_ = nullptr;
-			}
-		}
+		handle( handle&& other ) noexcept;
+		handle& operator=( handle&& other ) noexcept;
 
 		handle( handle const& ) = delete;
 		handle& operator=( handle const& ) = delete;
 
-		virtual size_type size() const noexcept
-		{
-			return sizeof( T );
-		}
+		virtual size_type size() const noexcept;
 
 		virtual void destroy()
-		noexcept( std::is_nothrow_destructible<T>::value ) override
-		{
-			reinterpret_cast<T*>( src_ )->~T();
-			src_ = nullptr;
-		}
+		noexcept( std::is_nothrow_destructible<T>::value )
+		override;
 
 		virtual void transfer( void* dst )
-		noexcept( noexcept( std::declval<handle>().transfer( is_moveable, dst ) ) ) override
-		{
-			transfer( is_moveable, dst );
-		}
+		noexcept( noexcept( std::declval<handle>().transfer( is_moveable, dst ) ) )
+		override;
 
 		virtual void copy( void* dst, gut::polymorphic_handle& out_handle ) const
-		noexcept( std::is_nothrow_copy_constructible<T>::value ) override
-		{
-			T* p{ ::new ( dst ) T{ *reinterpret_cast<T*>( src_ ) } };
-			out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
-		}
+		noexcept( std::is_nothrow_copy_constructible<T>::value )
+		override;
 
 	private:
 		void transfer( std::true_type, void* dst )
-		noexcept( std::is_nothrow_move_constructible<T>::value )
-		{
-			T* old_src{ reinterpret_cast<T*>( src_ ) };
-			src_ = ::new ( dst ) T{ std::move( *old_src ) };
-			old_src->~T();
-		}
+		noexcept( std::is_nothrow_move_constructible<T>::value );
 
 		void transfer( std::false_type, void* dst )
-		noexcept( std::is_nothrow_copy_constructible<T>::value )
-		{
-		    T* old_src{ reinterpret_cast<T*>( src_ ) };
-			src_ = ::new ( dst ) T{ *old_src };
-			old_src->~T();
-		}
+		noexcept( std::is_nothrow_copy_constructible<T>::value );
 	};
+}
+//////////////////////////////////////////////////////////////////////////////////
+// constructors
+//////////////////////////////////////////////////////////////////////////////////
+template<class T>
+inline gut::handle<T>::handle( T* src ) noexcept
+	: handle_base( src )
+{}
+
+template<class T>
+inline gut::handle<T>::handle( handle&& other ) noexcept
+	: handle_base( other.src_ )
+{
+	other.src_ = nullptr;
+}
+
+template<class T>
+inline gut::handle<T>& gut::handle<T>::operator=( handle&& other ) noexcept
+{
+	if ( this != &other )
+	{
+		src_ = other.src_;
+		other.src_ = nullptr;
+	}
+}
+//////////////////////////////////////////////////////////////////////////////////
+// overriden virtual functions
+//////////////////////////////////////////////////////////////////////////////////
+template<class T>
+inline typename gut::handle<T>::size_type gut::handle<T>::size() const noexcept
+{
+	return sizeof( T );
+}
+
+template<class T>
+inline void gut::handle<T>::destroy()
+noexcept( std::is_nothrow_destructible<T>::value )
+{
+	reinterpret_cast<T*>( src_ )->~T();
+	src_ = nullptr;
+}
+
+template<class T>
+inline void gut::handle<T>::transfer( void* dst )
+noexcept( noexcept( std::declval<handle>().transfer( is_moveable, dst ) ) )
+{
+	transfer( is_moveable, dst );
+}
+
+template<class T>
+inline void gut::handle<T>::copy( void* dst, gut::polymorphic_handle& out_handle )
+const noexcept( std::is_nothrow_copy_constructible<T>::value )
+{
+	T* p{ ::new ( dst ) T{ *reinterpret_cast<T*>( src_ ) } };
+	out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
+}
+//////////////////////////////////////////////////////////////////////////////////
+// private functions
+//////////////////////////////////////////////////////////////////////////////////
+template <class T>
+inline void gut::handle<T>::transfer( std::true_type, void* dst )
+noexcept( std::is_nothrow_move_constructible<T>::value )
+{
+	T* old_src{ reinterpret_cast<T*>( src_ ) };
+	src_ = ::new ( dst ) T{ std::move( *old_src ) };
+	old_src->~T();
+}
+
+template <class T>
+inline void gut::handle<T>::transfer( std::false_type, void* dst )
+noexcept( std::is_nothrow_copy_constructible<T>::value )
+{
+	T* old_src{ reinterpret_cast<T*>( src_ ) };
+	src_ = ::new ( dst ) T{ *old_src };
+	old_src->~T();
 }
 #endif // GUT_HANDLE_H
