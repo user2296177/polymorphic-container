@@ -13,8 +13,6 @@ namespace gut
 	class handle final : public handle_base
 	{
 	public:
-		using byte = unsigned char;
-
 		static_assert( sizeof( void* ) == sizeof( T* ),
 			"incompatible pointer sizes" );
 
@@ -25,7 +23,7 @@ namespace gut
 
 		~handle() = default;
 
-		handle( T* src ) noexcept;
+		handle( void* blk, T* src ) noexcept;
 
 		handle( handle&& other ) noexcept;
 		handle& operator=( handle&& other ) noexcept;
@@ -33,17 +31,18 @@ namespace gut
 		handle( handle const& ) = delete;
 		handle& operator=( handle const& ) = delete;
 
+		virtual size_type align() const noexcept;
 		virtual size_type size() const noexcept;
 
 		virtual void destroy()
 		noexcept( std::is_nothrow_destructible<T>::value )
 		override;
 
-		virtual void transfer( void* dst )
+		virtual void transfer( void* blk, void* dst )
 		noexcept( noexcept( std::declval<handle>().transfer( is_moveable, dst ) ) )
 		override;
 
-		virtual void copy( void* dst, gut::polymorphic_handle& out_handle ) const
+		virtual void copy( void* blk, void* dst, gut::polymorphic_handle& out_handle ) const
 		noexcept( std::is_nothrow_copy_constructible<T>::value )
 		override;
 
@@ -59,13 +58,13 @@ namespace gut
 // constructors
 //////////////////////////////////////////////////////////////////////////////////
 template<class T>
-inline gut::handle<T>::handle( T* src ) noexcept
-	: handle_base( src )
+inline gut::handle<T>::handle( void* block, T* src ) noexcept
+	: handle_base( block, src )
 {}
 
 template<class T>
 inline gut::handle<T>::handle( handle&& other ) noexcept
-	: handle_base( other.src_ )
+	: handle_base( other.blk_, other.src_ )
 {
 	other.src_ = nullptr;
 }
@@ -76,12 +75,19 @@ inline gut::handle<T>& gut::handle<T>::operator=( handle&& other ) noexcept
 	if ( this != &other )
 	{
 		src_ = other.src_;
+		blk_ = other.blk_;
 		other.src_ = nullptr;
 	}
 }
 //////////////////////////////////////////////////////////////////////////////////
 // overriden virtual functions
 //////////////////////////////////////////////////////////////////////////////////
+template<class T>
+inline typename gut::handle<T>::size_type gut::handle<T>::align() const noexcept
+{
+	return alignof( T );
+}
+
 template<class T>
 inline typename gut::handle<T>::size_type gut::handle<T>::size() const noexcept
 {
@@ -97,18 +103,19 @@ noexcept( std::is_nothrow_destructible<T>::value )
 }
 
 template<class T>
-inline void gut::handle<T>::transfer( void* dst )
+inline void gut::handle<T>::transfer( void* blk, void* dst )
 noexcept( noexcept( std::declval<handle>().transfer( is_moveable, dst ) ) )
 {
+	blk_ = blk;
 	transfer( is_moveable, dst );
 }
 
 template<class T>
-inline void gut::handle<T>::copy( void* dst, gut::polymorphic_handle& out_handle )
+inline void gut::handle<T>::copy( void* blk, void* dst, gut::polymorphic_handle& out_handle )
 const noexcept( std::is_nothrow_copy_constructible<T>::value )
 {
 	T* p{ ::new ( dst ) T{ *reinterpret_cast<T*>( src_ ) } };
-	out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
+	out_handle = gut::polymorphic_handle{ gut::handle<T>{ blk, p } };
 }
 //////////////////////////////////////////////////////////////////////////////////
 // private functions
