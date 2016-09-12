@@ -14,6 +14,12 @@
 
 namespace gut
 {
+	template<class B, class D>
+	using enable_if_derived_t = std::enable_if_t
+	<
+		std::is_base_of<B, std::decay_t<D>>::value, int
+	>;
+
 	template<class B>
 	class polymorphic_vector final
 	{
@@ -62,20 +68,34 @@ namespace gut
 		polymorphic_vector( polymorphic_vector const& other );
 		polymorphic_vector& operator=( polymorphic_vector const& other );
 
-		// modifiers - missing insert operations
-		template
-		<
-			class D,
-			std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int> = 0
-		>
+		// modifiers - missing insert operations; consider insert(pos, beg, end)
+		template<class D, enable_if_derived_t<B, D> = 0>
 		void push_back( D&& value );
+
+		template<class D, class... Args, enable_if_derived_t<B, D> = 0>
+		void emplace_back( Args&&... value );
+
+		template<class D, class... Args, enable_if_derived_t<B, D> = 0>
+		iterator emplace( const_iterator position, Args&&... args );
+
+		template<class D, enable_if_derived_t<B, D> = 0>
+		iterator insert( const_iterator pos, D&& value );
+
+		template<class D, enable_if_derived_t<B, D> = 0>
+		iterator insert( const_iterator pos, size_type count, D const& value );
+
+		template<class D, enable_if_derived_t<B, D> = 0>
+		iterator insert( const_iterator pos, std::initializer_list<D> list );
 
 		template
 		<
-			class D, class... Args,
-			std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int> = 0
+			class InputIt,
+			enable_if_derived_t
+			<
+				B, typename std::iterator_traits<InputIt>::value_type
+			> = 0
 		>
-		void emplace_back( Args&&... value );
+		iterator insert( const_iterator pos, InputIt first, InputIt last );
 
 		iterator erase( const_iterator position );
 		iterator erase( const_iterator begin, const_iterator end );
@@ -97,8 +117,7 @@ namespace gut
 		reference back() noexcept;
 		const_reference back() const noexcept;
 
-		// capacity - missing reserve
-		void reserve( size_type const n );
+		// capacity - maybe add reserve() <---- think about this one more
 		size_type size() const noexcept;
 		bool empty() const noexcept;
 
@@ -338,18 +357,14 @@ gut::polymorphic_vector<B>::crend() const noexcept
 // modifiers
 //////////////////////////////////////////////////////////////////////////////////
 template<class B>
-template<class D, std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int>>
+template<class D, gut::enable_if_derived_t<B, D>>
 inline void gut::polymorphic_vector<B>::push_back( D&& value )
 {
 	emplace_back<D>( std::forward<D>( value ) );
 }
 
 template<class B>
-template
-<
-	class D, class... Args,
-	std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int>
->
+template<class D, class... Args, gut::enable_if_derived_t<B, D>>
 inline void gut::polymorphic_vector<B>::emplace_back( Args&&... args )
 {
 	using der_t = std::decay_t<D>;
