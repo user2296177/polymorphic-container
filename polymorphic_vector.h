@@ -137,15 +137,26 @@ namespace gut
 		void unchecked_erase( size_type const i, size_type const j )
 		{
 			gut::polymorphic_handle& h{ handles_[ i ] };
-
-            size_ =
-                reinterpret_cast<std::uintptr_t>( reinterpret_cast<byte*>( h->src() ) - h->padding() ) -
-                reinterpret_cast<std::uintptr_t>( data_ );
+            size_ = reinterpret_cast<byte*>( h->src() ) - h->padding() - data_;
 
 			for ( size_type k{ i }; k != j; ++k )
             {
 				handles_[ k ]->destroy();
             }
+
+            /*
+			 * unimplemented fix for VC++, worth implementing?????
+			 * this can occur more than once, so this check must be done for
+			 * every type
+
+			if ( destroyed_size < sizeof( next_value )
+			{
+				std::aligned_storage_t s;
+				next_value.transfer( &s );
+				next_value.transfer( data_ + size_, size_ );
+			}
+
+			 */
 
 			auto handles_begin = handles_.begin();
 			handles_.erase( handles_begin + i, handles_begin + j );
@@ -369,7 +380,7 @@ inline void
 gut::polymorphic_vector<B>::pop_back()
 {
     gut::polymorphic_handle& h{ handles_.back() };
-    size_ = reinterpret_cast<std::uintptr_t>( reinterpret_cast<byte*>( h->src() ) - h->padding() ) - reinterpret_cast<std::uintptr_t>( data_ );
+    size_ = reinterpret_cast<byte*>( h->src() ) - h->padding() - data_;
 	h->destroy();
 	handles_.pop_back();
 }
