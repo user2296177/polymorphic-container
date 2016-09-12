@@ -133,23 +133,33 @@ namespace gut
 
 		void erase_range( size_type const i, size_type const j )
 		{
-			assert( i < j );
+			assert( i < j && j <= handles_.size() );
 
-			gut::polymorphic_handle& h_i{ handles_[ i ] };
-			byte* erase_ptr{ reinterpret_cast<byte*>( h_i->src() ) };
-			size_type transfer_offset = erase_ptr - data_;
-			erase_ptr -= transfer_offset;
-			h_i->destroy();
+			if ( i == 0 )
+			{
+				emplace_offset_ = 0;
+			}
+			else
+			{
+				gut::polymorphic_handle& h{ handles_[ i - 1 ] };
+				sizeof_prev_ = h->size();
+				emplace_offset_ = reinterpret_cast<byte*>( h->src() ) +
+					sizeof_prev_ - data_;
+			}
 
-			for ( size_type k{ i + 1 }; k != j; ++k )
+			for ( size_type k{ i }; k != j; ++k )
 			{
 				handles_[ k ]->destroy();
 			}
 
-			/*
-			properly transfer and set emplace_offset_;;;
-			*/
-
+			for ( size_type k{ j }, sz{ handles_.size() }; k != sz; ++k )
+			{
+				update_emplace_offset( handles_[ k ]->size() );
+				handles_[ k ]->transfer( data_ + emplace_offset_ );
+				sizeof_prev_ = handles_[ k ]->size();
+				emplace_offset_ += sizeof_prev_;
+			}
+			
 			auto handles_begin = handles_.begin();
 			handles_.erase( handles_begin + i, handles_begin + j );
 		}
