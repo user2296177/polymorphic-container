@@ -9,6 +9,7 @@
 #include <vector>
 #include <utility>
 #include <iterator>
+#include <cstdlib>
 #include <cassert>
 
 namespace gut
@@ -25,7 +26,7 @@ namespace gut
 
 		using container_type = std::vector<gut::polymorphic_handle>;
         using size_type = container_type::size_type;
-		
+
 		using iterator = gut::polymorphic_vector_iterator<B, false>;
 		using const_iterator = gut::polymorphic_vector_iterator<B, true>;
 		using reverse_iterator = std::reverse_iterator<iterator>;
@@ -85,7 +86,7 @@ namespace gut
 			std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int> = 0
 		>
 		explicit polymorphic_vector( D&& value );
-		
+
 		polymorphic_vector( polymorphic_vector&& other ) noexcept;
 		polymorphic_vector& operator=( polymorphic_vector&& other ) noexcept;
 
@@ -98,7 +99,7 @@ namespace gut
 			std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int> = 0
 		>
 		void push_back( D&& value );
-        
+
 		template
 		<
 			class D, class... Args,
@@ -120,10 +121,10 @@ namespace gut
 
 		reference at( size_type const i );
 		const_reference at( size_type const i ) const;
-		
+
 		reference front();
 		const_reference front() const;
-		
+
 		reference back() noexcept;
 		const_reference back() const noexcept;
 
@@ -133,26 +134,34 @@ namespace gut
         template<class D>
 		void ensure_capacity();
 
-    private:
-		using byte = unsigned char;
-
-		void unchecked_erase( size_type const i )
+		void unchecked_erase( size_type const i, size_type const j )
 		{
 			gut::polymorphic_handle& h{ handles_[ i ] };
-
 			byte* erase_ptr{ reinterpret_cast<byte*>( h->src() ) - h->padding() };
-			size_type new_size;
-			h->destroy( new_size );
-			size_ -= new_size;
+			size_type destroyed_size{ 0 };
 
-			new_size = 0;
-			for ( size_type j{ i + 1 }, size{ handles_.size() }; j != size; ++j )
+			size_type erase_size{ 0 };
+			for ( size_type k{ i }; k != j; ++k )
 			{
-				handles_[ j ]->transfer( erase_ptr + new_size, new_size );
+				handles_[ k ]->destroy( destroyed_size );
+				erase_size += destroyed_size;
 			}
-			handles_.erase( handles_.begin() + i );
-			assert( new_size + ( size_ - new_size ) == size_ );
+
+			size_ -= erase_size;
+			auto handles_begin = handles_.begin();
+			handles_.erase( handles_begin + i, handles_begin + j );
+
+			size_type new_size{ 0 };
+			for ( size_type k{ i }, sz{ handles_.size() }; k != sz; ++k )
+			{
+				handles_[ k ]->transfer( erase_ptr + new_size, destroyed_size );
+				new_size += destroyed_size;
+			}
+			/// TODO: ensure that size_ is left in the proper state here
 		}
+
+    private:
+		using byte = unsigned char;
 
 		void ensure_index_bounds( size_type const i ) const
 		{
@@ -305,7 +314,7 @@ gut::polymorphic_vector<B>::operator=( polymorphic_vector const& other )
 			{
 				h->destroy();
 			}
-			
+
 			std::free( data_ );
 			data_ = new_data;
 			size_ = 0;
@@ -469,7 +478,8 @@ inline void
 gut::polymorphic_vector<B>::ensure_capacity()
 {
 	using der_t = std::decay_t<D>;
-	auto padding = gut::calculate_padding<der_t>( data_ + size_ );
+
+	size_type padding{ gut::calculate_padding<der_t>( data_ + size_ ) };
 	if ( capacity_ - size_ < sizeof( der_t ) + padding )
 	{
 		auto new_capacity = ( sizeof( der_t ) + alignof( der_t ) + capacity_ ) * 2;
@@ -480,7 +490,8 @@ gut::polymorphic_vector<B>::ensure_capacity()
 			capacity_ = new_capacity;
 			for ( auto& h : handles_ )
 			{
-				h->transfer( new_data + size_, size_ );
+				h->transfer( new_data + size_, padding );
+				size_ += padding;
 			}
 			std::free( data_ );
 			data_ = new_data;

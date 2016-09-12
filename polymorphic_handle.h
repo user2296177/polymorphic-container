@@ -22,7 +22,7 @@ namespace gut
 		<
 			sizeof( value_type ), alignof( value_type )
 		>;
-		
+
 		~polymorphic_handle() noexcept
 		{
 			if ( is_initialized_ )
@@ -34,6 +34,12 @@ namespace gut
 		polymorphic_handle() noexcept
 			: is_initialized_{ false }
 		{}
+
+		polymorphic_handle( polymorphic_handle&& other ) = default;
+		polymorphic_handle& operator=( polymorphic_handle&& other ) = default;
+
+		polymorphic_handle( polymorphic_handle const& ) = delete;
+		polymorphic_handle& operator=( polymorphic_handle const& ) = delete;
 
 		template<class T>
 		explicit polymorphic_handle( gut::handle<T>&& h ) noexcept

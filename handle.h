@@ -2,6 +2,9 @@
 #define GUT_HANDLE_H
 
 #include "handle_base.h"
+#include <cstddef>
+#include <cstdint>
+#include <utility>
 #include <type_traits>
 
 namespace gut
@@ -39,19 +42,26 @@ namespace gut
 
 		handle& operator=( handle&& other ) noexcept
 		{
-			src_ = other.src_;
-			other.src_ = nullptr;
+			if ( this != &other )
+			{
+				src_ = other.src_;
+				padding_ = other.padding_;
+				other.src_ = nullptr;
+			}
 		}
 
+		handle( handle const& ) = delete;
+		handle& operator=( handle const& ) = delete;
+
 		virtual void destroy()
-		noexcept( std::is_nothrow_destructible<T>::value )
+		noexcept( std::is_nothrow_destructible<T>::value ) override
 		{
 			reinterpret_cast<T*>( src_ )->~T();
 			src_ = nullptr;
 		}
 
 		virtual void destroy( std::size_t& out_size )
-		noexcept( std::is_nothrow_destructible<T>::value )
+		noexcept( std::is_nothrow_destructible<T>::value ) override
 		{
 			reinterpret_cast<T*>( src_ )->~T();
 			src_ = nullptr;
@@ -64,7 +74,7 @@ namespace gut
 		{
 			padding_ = gut::calculate_padding<T>( dst );
 			transfer( is_moveable, reinterpret_cast<byte*>( dst ) + padding_ );
-			out_size += sizeof( T ) + padding_;
+			out_size = sizeof( T ) + padding_;
 		}
 
 		virtual void copy( void* dst,
@@ -77,7 +87,7 @@ namespace gut
 				*reinterpret_cast<T*>( src_ )
 			} };
 			out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
-			out_size += sizeof( T ) + padding_;
+			out_size = sizeof( T ) + padding_;
 		}
 
 	private:
@@ -88,11 +98,9 @@ namespace gut
 		}
 
 		void transfer( std::false_type, void* dst )
-			noexcept( std::is_nothrow_copy_assignable<T>::value )
+		noexcept( std::is_nothrow_copy_assignable<T>::value )
 		{
-			T* old_src{ src_ };
 			src_ = ::new ( dst ) T{ *reinterpret_cast<T*>( src_ ) };
-			old_src->~T();
 		}
 	};
 }

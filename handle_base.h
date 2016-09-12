@@ -13,9 +13,25 @@ namespace gut
 	{
 	public:
 		virtual ~handle_base() = default;
-		
-		handle_base( handle_base&& ) noexcept;
-		handle_base& operator=( handle_base&& ) noexcept;
+
+		handle_base( handle_base&& other ) noexcept
+			: src_{ other.src_ }
+            , padding_{ other.padding_ }
+        {
+            other.src_ = nullptr;
+        }
+
+		handle_base& operator=( handle_base&& other ) noexcept
+		{
+            if ( this != &other )
+            {
+                src_ = other.src_;
+                padding_ = other.padding_;
+                other.src_ = nullptr;
+            }
+            return *this;
+        }
+
 		handle_base( handle_base const& ) = delete;
 		handle_base& operator=( handle_base const& ) = delete;
 
@@ -36,8 +52,11 @@ namespace gut
 		}
 
 	protected:
-		handle_base( void* src, std::size_t const padding ) noexcept;
-		
+		handle_base( void* src, std::size_t const padding ) noexcept
+            : src_{ src }
+            , padding_{ padding }
+        {}
+
 		void* src_;
 		mutable std::size_t padding_;
 	};
