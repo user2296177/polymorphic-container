@@ -135,6 +135,12 @@ namespace gut
 		{
 			assert( i < j && j <= handles_.size() );
 
+			if ( i == 0 && j == handles_.size() )
+			{
+				clear();
+				return;
+			}
+
 			if ( i == 0 )
 			{
 				emplace_offset_ = 0;
