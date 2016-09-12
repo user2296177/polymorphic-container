@@ -25,7 +25,7 @@ namespace gut
 		using const_pointer = value_type const*;
 
 		using container_type = std::vector<gut::polymorphic_handle>;
-        using size_type = container_type::size_type;
+		using size_type = container_type::size_type;
 
 		using iterator = gut::polymorphic_vector_iterator<B, false>;
 		using const_iterator = gut::polymorphic_vector_iterator<B, true>;
@@ -137,17 +137,16 @@ namespace gut
 		void unchecked_erase( size_type const i, size_type const j )
 		{
 			gut::polymorphic_handle& h{ handles_[ i ] };
-            size_ = reinterpret_cast<byte*>( h->src() ) - h->padding() - data_;
+			size_ = reinterpret_cast<byte*>( h->src() ) - h->padding() - data_;
 
 			for ( size_type k{ i }; k != j; ++k )
-            {
+			{
 				handles_[ k ]->destroy();
-            }
-
-            /*
+			}
+			/*
 			 * unimplemented fix for VC++, worth implementing?????
 			 * this can occur more than once, so this check must be done for
-			 * every type
+			 * every type inside the transfer loop.
 			 *
 			 *	if ( destroyed_size < sizeof( next_value )
 			 *	{
@@ -156,14 +155,13 @@ namespace gut
 			 *		next_value.transfer( data_ + size_, size_ );
 			 *	}
 			 */
-
 			auto handles_begin = handles_.begin();
 			handles_.erase( handles_begin + i, handles_begin + j );
 
 			for ( size_type k{ i }, sz{ handles_.size() }; k != sz; ++k )
-            {
+			{
 				handles_[ k ]->transfer( data_ + size_, size_ );
-            }
+			}
 		}
 
     private:
