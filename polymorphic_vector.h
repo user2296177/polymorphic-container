@@ -14,10 +14,10 @@
 
 namespace gut
 {
-    template<class B>
-    class polymorphic_vector final
-    {
-    public:
+	template<class B>
+	class polymorphic_vector final
+	{
+	public:
 		using value_type = B;
 		using reference = value_type&;
 		using const_reference = value_type const&;
@@ -25,7 +25,7 @@ namespace gut
 		using const_pointer = value_type const*;
 
 		using container_type = std::vector<gut::polymorphic_handle>;
-        using size_type = container_type::size_type;
+		using size_type = container_type::size_type;
 
 		using iterator = gut::polymorphic_vector_iterator<B, false>;
 		using const_iterator = gut::polymorphic_vector_iterator<B, true>;
@@ -131,42 +131,40 @@ namespace gut
 		size_type size() const noexcept;
 		bool empty() const noexcept;
 
-        template<class D>
+		template<class D>
 		void ensure_capacity();
 
 		void unchecked_erase( size_type const i, size_type const j )
 		{
 			gut::polymorphic_handle& h{ handles_[ i ] };
-            size_ = reinterpret_cast<byte*>( h->src() ) - h->padding() - data_;
+			size_ = reinterpret_cast<byte*>( h->src() ) - h->padding() - data_;
 
 			for ( size_type k{ i }; k != j; ++k )
-            {
+			{
 				handles_[ k ]->destroy();
-            }
-
-            /*
-			 * unimplemented fix for VC++, worth implementing?????
-			 * this can occur more than once, so this check must be done for
-			 * every type
-			 *
-			 *	if ( destroyed_size < sizeof( next_value )
-			 *	{
-			 *		std::aligned_storage_t s;
-			 *		next_value.transfer( &s );
-			 *		next_value.transfer( data_ + size_, size_ );
-			 *	}
-			 */
-
+			}
+			/*
+			* unimplemented fix for VC++, worth implementing?????
+			* this can occur more than once, so this check must be done for
+			* every type inside the transfer loop.
+			*
+			*	if ( destroyed_size < sizeof( next_value )
+			*	{
+			*		std::aligned_storage_t s;
+			*		next_value.transfer( &s );
+			*		next_value.transfer( data_ + size_, size_ );
+			*	}
+			*/
 			auto handles_begin = handles_.begin();
 			handles_.erase( handles_begin + i, handles_begin + j );
 
 			for ( size_type k{ i }, sz{ handles_.size() }; k != sz; ++k )
-            {
+			{
 				handles_[ k ]->transfer( data_ + size_, size_ );
-            }
+			}
 		}
 
-    private:
+	private:
 		using byte = unsigned char;
 
 		void ensure_index_bounds( size_type const i ) const
@@ -182,11 +180,11 @@ namespace gut
 			}
 		}
 
-        std::vector<gut::polymorphic_handle> handles_;
-        byte* data_;
-        size_type size_;
-        size_type capacity_;
-    };
+		std::vector<gut::polymorphic_handle> handles_;
+		byte* data_;
+		size_type size_;
+		size_type capacity_;
+	};
 }
 
 template<class B>
