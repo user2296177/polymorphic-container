@@ -14,12 +14,6 @@
 
 namespace gut
 {
-	static std::size_t calculate_padding( void* p, std::size_t const align ) noexcept
-	{
-		std::size_t r{ reinterpret_cast<std::uintptr_t>( p ) % align };
-		return r == 0 ? 0 : align - r;
-	}
-
 	template<class B>
 	class polymorphic_vector final
 	{
@@ -111,133 +105,15 @@ namespace gut
 	private:
 		using byte = unsigned char;
 
-		void copy( polymorphic_vector const& other )
-		{
-			gut::polymorphic_handle out_h;
-			for ( gut::polymorphic_handle const& h : other.handles_ )
-			{
-				h->copy(
-					data_ + ( reinterpret_cast<byte*>( h->blk() ) - other.data_ ),
-					data_ + ( reinterpret_cast<byte*>( h->src() ) - other.data_ ),
-					out_h );
-
-				handles_.emplace_back( std::move( out_h ) );
-			}
-		}
-
-		void erase_range( size_type const i, size_type const j )
-		{
-			assert( i < j && j <= handles_.size() );
-			
-			emplace_offset_ =
-				reinterpret_cast<byte*>( handles_[ i ]->blk() ) - data_;
-
-			sizeof_prev_ = emplace_offset_ == 0 ? 0 : handles_[ i - 1 ]->size();
-
-			for ( size_type k{ i }; k != j; ++k )
-			{
-				handles_[ k ]->destroy();
-			}
-
-			void* blk;
-			void* src;
-			for ( size_type k{ j }, sz{ handles_.size() }; k != sz; ++k )
-			{
-				blk = data_ + emplace_offset_;
-				emplace_offset_ = next_emplace_offset( handles_[ k ]->align(), handles_[ k ]->size() );
-				src = data_ + emplace_offset_;
-
-				handles_[ k ]->transfer( blk, src );
-				sizeof_prev_ = handles_[ k ]->size();
-				emplace_offset_ += sizeof_prev_;
-			}
-			
-			auto handles_begin = handles_.begin();
-			handles_.erase( handles_begin + i, handles_begin + j );
-		}
-
-		size_type next_emplace_offset( size_type const align, size_type const size ) noexcept
-		{
-			size_type next_offset{ emplace_offset_ };
-			if ( sizeof_prev_ == 0 )
-			{
-				return next_offset;
-			}
-			else if ( size > sizeof_prev_ )
-			{
-				next_offset += size - sizeof_prev_;
-				next_offset += gut::calculate_padding( data_ + emplace_offset_, align );
-			}
-			else
-			{
-				next_offset += gut::calculate_padding( data_ + emplace_offset_, align );
-			}
-			return next_offset;
-		}
+		void ensure_index_bounds( size_type const i ) const;
+		void copy( polymorphic_vector const& other );
+		void erase_range( size_type const i, size_type const j );
+		
+		size_type next_emplace_offset( size_type const align,
+			size_type const size ) noexcept;
 
 		template<class D> // TODO: extract transfer loop into function
-		std::pair<void*, void*> next_alloc()
-		{
-			using der_t = std::decay_t<D>;
-
-			// transform next 3 lines into function/macro?
-			byte* blk{ data_ + emplace_offset_ };
-			size_type new_emplace_offset = next_emplace_offset( alignof( der_t ), sizeof( der_t ) );
-			byte* src{ data_ + new_emplace_offset };
-			
-			size_type required_size{ sizeof( D ) + ( src - blk ) };
-
-			if ( capacity_ - emplace_offset_ < required_size )
-			{
-				size_type new_capacity{ ( alignof( der_t ) + required_size + capacity_ ) * 2 };
-				byte* new_data{ reinterpret_cast<byte*>( std::malloc( new_capacity ) ) };
-
-				if ( new_data )
-				{
-					emplace_offset_ = 0;
-					capacity_ = new_capacity;
-					sizeof_prev_ = 0;
-
-					for ( size_type k{ 0 }, size{ handles_.size() }; k != size; ++k )
-					{
-						blk = new_data + emplace_offset_;
-						emplace_offset_ = next_emplace_offset( handles_[ k ]->align(), handles_[ k ]->size() );
-						src = new_data + emplace_offset_;
-
-						handles_[ k ]->transfer( blk, src );
-						sizeof_prev_ = handles_[ k ]->size();
-						emplace_offset_ += sizeof_prev_;
-					}
-					std::free( data_ );
-
-					blk = new_data + emplace_offset_;
-					emplace_offset_ = next_emplace_offset( alignof( der_t ), sizeof( der_t ) );
-					src = new_data + emplace_offset_;
-
-					data_ = new_data;
-				}
-				else
-				{
-					throw std::bad_alloc{};
-				}
-			}
-			emplace_offset_ = new_emplace_offset + sizeof( der_t );
-			sizeof_prev_ = sizeof( der_t );
-			return { blk, src };
-		}
-
-		void ensure_index_bounds( size_type const i ) const
-		{
-			if ( i >= handles_.size() )
-			{
-				throw std::out_of_range
-				{
-					"polymorphic_vector<B>::"
-					"ensure_index_bounds( size_type const i );\n"
-					"index out of range"
-				};
-			}
-		}
+		std::pair<void*, void*> next_alloc();
 
 		std::vector<gut::polymorphic_handle> handles_;
 		byte* data_;
@@ -245,6 +121,16 @@ namespace gut
 		size_type capacity_;
 		size_type sizeof_prev_;
 	};
+}
+
+namespace gut
+{
+	static std::size_t calculate_padding( void* p, std::size_t const align )
+	noexcept
+	{
+		std::size_t r{ reinterpret_cast<std::uintptr_t>( p ) % align };
+		return r == 0 ? 0 : align - r;
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////////////
@@ -583,6 +469,143 @@ template<class B>
 inline bool gut::polymorphic_vector<B>::empty() const noexcept
 {
 	return handles_.empty();
+}
+///////////////////////////////////////////////////////////////////////////////
+// private member functions
+///////////////////////////////////////////////////////////////////////////////
+template <class B>
+void gut::polymorphic_vector<B>::ensure_index_bounds( size_type const i ) const
+{
+	if ( i >= handles_.size() )
+	{
+		throw std::out_of_range
+		{
+			"polymorphic_vector<B>::"
+			"ensure_index_bounds( size_type const i );\n"
+			"index out of range"
+		};
+	}
+}
+
+template <class B>
+void gut::polymorphic_vector<B>::copy( polymorphic_vector const& other )
+{
+	gut::polymorphic_handle out_h;
+	for ( gut::polymorphic_handle const& h : other.handles_ )
+	{
+		h->copy(
+			data_ + ( reinterpret_cast<byte*>( h->blk() ) - other.data_ ),
+			data_ + ( reinterpret_cast<byte*>( h->src() ) - other.data_ ),
+			out_h );
+
+		handles_.emplace_back( std::move( out_h ) );
+	}
+}
+
+template <class B>
+void gut::polymorphic_vector<B>::erase_range( size_type const i, size_type const j )
+{
+	assert( i < j && j <= handles_.size() );
+
+	emplace_offset_ =
+		reinterpret_cast<byte*>( handles_[ i ]->blk() ) - data_;
+
+	sizeof_prev_ = emplace_offset_ == 0 ? 0 : handles_[ i - 1 ]->size();
+
+	for ( size_type k{ i }; k != j; ++k )
+	{
+		handles_[ k ]->destroy();
+	}
+
+	void* blk;
+	void* src;
+	for ( size_type k{ j }, sz{ handles_.size() }; k != sz; ++k )
+	{
+		blk = data_ + emplace_offset_;
+		emplace_offset_ = next_emplace_offset( handles_[ k ]->align(), handles_[ k ]->size() );
+		src = data_ + emplace_offset_;
+
+		handles_[ k ]->transfer( blk, src );
+		sizeof_prev_ = handles_[ k ]->size();
+		emplace_offset_ += sizeof_prev_;
+	}
+
+	auto handles_begin = handles_.begin();
+	handles_.erase( handles_begin + i, handles_begin + j );
+}
+
+template <class B>
+typename gut::polymorphic_vector<B>::size_type
+gut::polymorphic_vector<B>::next_emplace_offset( size_type const align,
+	size_type const size ) noexcept
+{
+	size_type next_offset{ emplace_offset_ };
+	if ( sizeof_prev_ == 0 )
+	{
+		return next_offset;
+	}
+	else if ( size > sizeof_prev_ )
+	{
+		next_offset += size - sizeof_prev_;
+		next_offset += gut::calculate_padding( data_ + emplace_offset_, align );
+	}
+	else
+	{
+		next_offset += gut::calculate_padding( data_ + emplace_offset_, align );
+	}
+	return next_offset;
+}
+
+template<class B>
+template<class D>
+std::pair<void*, void*> gut::polymorphic_vector<B>::next_alloc()
+{
+	using der_t = std::decay_t<D>;
+
+	// transform next 3 lines into function/macro?
+	byte* blk{ data_ + emplace_offset_ };
+	size_type new_emplace_offset = next_emplace_offset( alignof( der_t ), sizeof( der_t ) );
+	byte* src{ data_ + new_emplace_offset };
+
+	size_type required_size{ sizeof( D ) + ( src - blk ) };
+
+	if ( capacity_ - emplace_offset_ < required_size )
+	{
+		size_type new_capacity{ ( alignof(der_t) +required_size + capacity_ ) * 2 };
+		byte* new_data{ reinterpret_cast<byte*>( std::malloc( new_capacity ) ) };
+
+		if ( new_data )
+		{
+			emplace_offset_ = 0;
+			capacity_ = new_capacity;
+			sizeof_prev_ = 0;
+
+			for ( size_type k{ 0 }, size{ handles_.size() }; k != size; ++k )
+			{
+				blk = new_data + emplace_offset_;
+				emplace_offset_ = next_emplace_offset( handles_[ k ]->align(), handles_[ k ]->size() );
+				src = new_data + emplace_offset_;
+
+				handles_[ k ]->transfer( blk, src );
+				sizeof_prev_ = handles_[ k ]->size();
+				emplace_offset_ += sizeof_prev_;
+			}
+			std::free( data_ );
+
+			blk = new_data + emplace_offset_;
+			emplace_offset_ = next_emplace_offset( alignof( der_t ), sizeof( der_t ) );
+			src = new_data + emplace_offset_;
+
+			data_ = new_data;
+		}
+		else
+		{
+			throw std::bad_alloc{};
+		}
+	}
+	emplace_offset_ = new_emplace_offset + sizeof( der_t );
+	sizeof_prev_ = sizeof( der_t );
+	return{ blk, src };
 }
 ///////////////////////////////////////////////////////////////////////////////
 // specialized algorithms
