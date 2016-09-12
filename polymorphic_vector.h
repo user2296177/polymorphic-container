@@ -148,14 +148,13 @@ namespace gut
 			 * unimplemented fix for VC++, worth implementing?????
 			 * this can occur more than once, so this check must be done for
 			 * every type
-
-			if ( destroyed_size < sizeof( next_value )
-			{
-				std::aligned_storage_t s;
-				next_value.transfer( &s );
-				next_value.transfer( data_ + size_, size_ );
-			}
-
+			 *
+			 *	if ( destroyed_size < sizeof( next_value )
+			 *	{
+			 *		std::aligned_storage_t s;
+			 *		next_value.transfer( &s );
+			 *		next_value.transfer( data_ + size_, size_ );
+			 *	}
 			 */
 
 			auto handles_begin = handles_.begin();
