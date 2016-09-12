@@ -63,12 +63,11 @@ namespace gut
 			transfer( is_moveable, dst );
 		}
 
-		virtual void copy( void* dst, gut::polymorphic_handle& out_handle, std::size_t& out_size ) const
+		virtual void copy( void* dst, gut::polymorphic_handle& out_handle ) const
 		noexcept( std::is_nothrow_copy_constructible<T>::value ) override
 		{
 			T* p{ ::new ( dst ) T{ *reinterpret_cast<T*>( src_ ) } };
 			out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
-			out_size += sizeof( T );
 		}
 
 	private:

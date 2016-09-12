@@ -39,7 +39,7 @@ namespace gut
 
 		virtual void destroy() = 0;
 		virtual void transfer( void* dst ) = 0;
-		virtual void copy( void* dst, polymorphic_handle& out_handle, size_type& out_size ) const = 0;
+		virtual void copy( void* dst, polymorphic_handle& out_handle ) const = 0;
 
 		void* src() const noexcept
 		{
