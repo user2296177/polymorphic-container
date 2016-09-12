@@ -2,8 +2,6 @@
 #define GUT_HANDLE_H
 
 #include "handle_base.h"
-#include <cstddef>
-#include <cstdint>
 #include <utility>
 #include <type_traits>
 

@@ -9,8 +9,8 @@
 #include <vector>
 #include <utility>
 #include <iterator>
-#include <cassert>
 #include <cstdlib>
+#include <cassert>
 
 namespace gut
 {
@@ -59,16 +59,8 @@ namespace gut
 		// destructor - complete
 		~polymorphic_vector() noexcept;
 
-		template
-		<
-			class D,
-			std::enable_if_t
-			<
-				!std::is_same<std::decay_t<D>, polymorphic_vector>::value, int
-			> = 0,
-			std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int> = 0
-		>
-		explicit polymorphic_vector( D&& value );
+		// constructors - complete
+		explicit polymorphic_vector( size_type const initial_capacity = 0 );
 
 		polymorphic_vector( polymorphic_vector&& other ) noexcept;
 		polymorphic_vector& operator=( polymorphic_vector&& other ) noexcept;
@@ -76,7 +68,7 @@ namespace gut
 		polymorphic_vector( polymorphic_vector const& other );
 		polymorphic_vector& operator=( polymorphic_vector const& other );
 
-		// modifiers
+		// modifiers - missing insert operations
 		template
 		<
 			class D,
@@ -98,7 +90,7 @@ namespace gut
 		void swap( polymorphic_vector& other ) noexcept;
 		void clear() noexcept;
 
-		// element access
+		// element access - complete
 		reference operator[]( size_type const i ) noexcept;
 		const_reference operator[]( size_type const i ) const noexcept;
 
@@ -124,8 +116,10 @@ namespace gut
 			gut::polymorphic_handle out_h;
 			for ( gut::polymorphic_handle const& h : other.handles_ )
 			{
-				h->copy( data_ +
-					( reinterpret_cast<byte*>( h->src() ) - other.data_ ), out_h );
+				h->copy(
+					data_ + ( reinterpret_cast<byte*>( h->blk() ) - other.data_ ),
+					data_ + ( reinterpret_cast<byte*>( h->src() ) - other.data_ ),
+					out_h );
 
 				handles_.emplace_back( std::move( out_h ) );
 			}
@@ -134,35 +128,26 @@ namespace gut
 		void erase_range( size_type const i, size_type const j )
 		{
 			assert( i < j && j <= handles_.size() );
+			
+			emplace_offset_ =
+				reinterpret_cast<byte*>( handles_[ i ]->blk() ) - data_;
 
-			if ( i == 0 && j == handles_.size() )
-			{
-				clear();
-				return;
-			}
-
-			if ( i == 0 )
-			{
-				emplace_offset_ = 0;
-				sizeof_prev_ = handles_[ j ]->size();
-			}
-			else
-			{
-				gut::polymorphic_handle& h{ handles_[ i - 1 ] };
-				sizeof_prev_ = h->size();
-				emplace_offset_ = reinterpret_cast<byte*>( h->src() ) +
-					sizeof_prev_ - data_;
-			}
+			sizeof_prev_ = emplace_offset_ == 0 ? 0 : handles_[ i - 1 ]->size();
 
 			for ( size_type k{ i }; k != j; ++k )
 			{
 				handles_[ k ]->destroy();
 			}
 
+			void* blk;
+			void* src;
 			for ( size_type k{ j }, sz{ handles_.size() }; k != sz; ++k )
 			{
-				update_emplace_offset( handles_[ k ]->size() );
-				handles_[ k ]->transfer( data_ + emplace_offset_ );
+				blk = data_ + emplace_offset_;
+				emplace_offset_ = next_emplace_offset( handles_[ k ]->align(), handles_[ k ]->size() );
+				src = data_ + emplace_offset_;
+
+				handles_[ k ]->transfer( blk, src );
 				sizeof_prev_ = handles_[ k ]->size();
 				emplace_offset_ += sizeof_prev_;
 			}
@@ -171,52 +156,64 @@ namespace gut
 			handles_.erase( handles_begin + i, handles_begin + j );
 		}
 
-		void update_emplace_offset( size_type const size ) noexcept
+		size_type next_emplace_offset( size_type const align, size_type const size ) noexcept
 		{
-			if ( size > sizeof_prev_ )
+			size_type next_offset{ emplace_offset_ };
+			if ( sizeof_prev_ == 0 )
 			{
-				emplace_offset_ += size - sizeof_prev_;
-				emplace_offset_ += gut::calculate_padding( data_ + emplace_offset_, alignof( std::max_align_t ) );
+				return next_offset;
+			}
+			else if ( size > sizeof_prev_ )
+			{
+				next_offset += size - sizeof_prev_;
+				next_offset += gut::calculate_padding( data_ + emplace_offset_, align );
 			}
 			else
 			{
-				emplace_offset_ += gut::calculate_padding( data_ + emplace_offset_, alignof( std::max_align_t ) );
+				next_offset += gut::calculate_padding( data_ + emplace_offset_, align );
 			}
+			return next_offset;
 		}
 
 		template<class D> // TODO: extract transfer loop into function
-		std::decay_t<D>* next_alloc_ptr()
+		std::pair<void*, void*> next_alloc()
 		{
 			using der_t = std::decay_t<D>;
 
-			size_type previous_offset{ emplace_offset_ };
-			update_emplace_offset( sizeof( der_t ) );
-			size_type required_size{ sizeof( D ) + emplace_offset_ - previous_offset };
+			// transform next 3 lines into function/macro?
+			byte* blk{ data_ + emplace_offset_ };
+			size_type new_emplace_offset = next_emplace_offset( alignof( der_t ), sizeof( der_t ) );
+			byte* src{ data_ + new_emplace_offset };
+			
+			size_type required_size{ sizeof( D ) + ( src - blk ) };
 
-			if ( capacity_ - previous_offset < required_size )
+			if ( capacity_ - emplace_offset_ < required_size )
 			{
 				size_type new_capacity{ ( alignof( der_t ) + required_size + capacity_ ) * 2 };
 				byte* new_data{ reinterpret_cast<byte*>( std::malloc( new_capacity ) ) };
 
 				if ( new_data )
 				{
+					emplace_offset_ = 0;
 					capacity_ = new_capacity;
 					sizeof_prev_ = 0;
 
-					gut::polymorphic_handle& h{ handles_.front() };
-					h->transfer( new_data );
-					sizeof_prev_ = h->size();
-					emplace_offset_ = sizeof_prev_;
-
-					for ( size_type k{ 1 }, handle_count{ handles_.size() }; k != handle_count; ++k )
+					for ( size_type k{ 0 }, size{ handles_.size() }; k != size; ++k )
 					{
-						update_emplace_offset( handles_[ k ]->size() );
-						handles_[ k ]->transfer( new_data + emplace_offset_ );
-						sizeof_prev_ = handles_[ k ]->size();
-					}
+						blk = new_data + emplace_offset_;
+						emplace_offset_ = next_emplace_offset( handles_[ k ]->align(), handles_[ k ]->size() );
+						src = new_data + emplace_offset_;
 
-					update_emplace_offset( sizeof( der_t ) );
+						handles_[ k ]->transfer( blk, src );
+						sizeof_prev_ = handles_[ k ]->size();
+						emplace_offset_ += sizeof_prev_;
+					}
 					std::free( data_ );
+
+					blk = new_data + emplace_offset_;
+					emplace_offset_ = next_emplace_offset( alignof( der_t ), sizeof( der_t ) );
+					src = new_data + emplace_offset_;
+
 					data_ = new_data;
 				}
 				else
@@ -224,8 +221,9 @@ namespace gut
 					throw std::bad_alloc{};
 				}
 			}
+			emplace_offset_ = new_emplace_offset + sizeof( der_t );
 			sizeof_prev_ = sizeof( der_t );
-			return reinterpret_cast<der_t*>( data_ + emplace_offset_ );
+			return { blk, src };
 		}
 
 		void ensure_index_bounds( size_type const i ) const
@@ -265,34 +263,15 @@ gut::polymorphic_vector<B>::~polymorphic_vector() noexcept
 // constructors/assignment
 //////////////////////////////////////////////////////////////////////////////////
 template<class B>
-template
-<
-	class D,
-	std::enable_if_t
-	<
-		!std::is_same<std::decay_t<D>, gut::polymorphic_vector<B>>::value, int
-	>,
-	std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int>
->
-gut::polymorphic_vector<B>::polymorphic_vector( D&& value )
-	: data_{ nullptr }
+gut::polymorphic_vector<B>::polymorphic_vector( size_type const initial_capacity )
+	: data_{ reinterpret_cast<byte*>( std::malloc( initial_capacity ) ) }
 	, emplace_offset_{ 0 }
 	, capacity_{ 0 }
+	, sizeof_prev_{ 0 }
 {
-	using der_t = std::decay_t<D>;
-
-	byte* new_data{ reinterpret_cast<byte*>(
-		std::malloc( sizeof( der_t ) + alignof( der_t ) ) ) };
-
-	if ( new_data )
+	if ( data_ )
 	{
-		data_ = new_data;
-		emplace_offset_ = sizeof( der_t );
-		capacity_ = sizeof( der_t ) + alignof( der_t );
-		handles_.emplace_back( gut::handle<der_t>
-		{
-			::new ( data_ ) der_t{ std::forward<D>( value ) }
-		} );
+		capacity_ = initial_capacity;
 	}
 	else
 	{
@@ -325,8 +304,8 @@ gut::polymorphic_vector<B>::operator=( polymorphic_vector&& other ) noexcept
 		std::free( data_ );
 		data_ = other.data_;
 		other.data_ = nullptr;
-		emplace_offset_ = other.emplace_offset_;
 		capacity_ = other.capacity_;
+		emplace_offset_ = other.emplace_offset_;
 	}
 	return *this;
 }
@@ -342,15 +321,7 @@ gut::polymorphic_vector<B>::polymorphic_vector( polymorphic_vector const& other 
 	{
 		emplace_offset_ = other.emplace_offset_;
 		capacity_ = other.emplace_offset_;
-
-		gut::polymorphic_handle hnd;
-		for ( gut::polymorphic_handle const& h : other.handles_ )
-		{
-			h->copy( data_ +
-				( reinterpret_cast<byte*>( h->src() ) - other.data_ ), hnd );
-			
-			handles_.emplace_back( std::move( hnd ) );
-		}
+		copy( other );
 	}
 	else
 	{
@@ -370,8 +341,8 @@ gut::polymorphic_vector<B>::operator=( polymorphic_vector const& other )
 		}
 		else
 		{
-			byte* new_data = reinterpret_cast<byte*>(
-				std::malloc( other.emplace_offset_ ) );
+			byte* new_data = reinterpret_cast<byte*>( std::malloc(
+				other.emplace_offset_ ) );
 
 			if ( new_data )
 			{
@@ -384,7 +355,6 @@ gut::polymorphic_vector<B>::operator=( polymorphic_vector const& other )
 				throw std::bad_alloc{};
 			}
 		}
-		
 		emplace_offset_ = other.emplace_offset_;
 		sizeof_prev_ = other.sizeof_prev_;
 		copy( other );
@@ -497,13 +467,11 @@ template
 inline void gut::polymorphic_vector<B>::emplace_back( Args&&... args )
 {
 	using der_t = std::decay_t<D>;
-
-	der_t* p{ ::new ( next_alloc_ptr<der_t>() ) der_t{
-		std::forward<Args>( args )... } };
-
-	handles_.emplace_back( gut::handle<der_t>{ p } );
-
-	emplace_offset_ += sizeof( der_t );
+	std::pair<void*, void*> alloc{ next_alloc<der_t>() };
+	handles_.emplace_back( gut::handle<der_t>
+	{
+		alloc.first, ::new ( alloc.second ) der_t{ std::forward<Args>( args )... }
+	} );
 }
 
 template<class B>
@@ -526,7 +494,7 @@ template<class B>
 inline void gut::polymorphic_vector<B>::pop_back()
 {
     gut::polymorphic_handle& h{ handles_.back() };
-	emplace_offset_ = reinterpret_cast<byte*>( h->src() ) - data_;
+	emplace_offset_ = reinterpret_cast<byte*>( h->blk() ) - data_;
 	h->destroy();
 	handles_.pop_back();
 }
