@@ -9,13 +9,6 @@
 
 namespace gut
 {
-	template<class T>
-	static std::size_t calculate_padding( void* p ) noexcept
-	{
-		std::size_t r{ reinterpret_cast<std::uintptr_t>( p ) % alignof( T ) };
-		return r == 0 ? 0 : alignof( T ) - r;
-	}
-
 	template <class T>
 	class handle final : public handle_base
 	{
@@ -31,11 +24,11 @@ namespace gut
 		> is_moveable{};
 
 		handle( T* src ) noexcept
-			: handle_base( src, 0 )
+			: handle_base( src )
 		{}
 
 		handle( handle&& other ) noexcept
-			: handle_base( other.src_, other.padding_ )
+			: handle_base( other.src_ )
 		{
 			other.src_ = nullptr;
 		}
@@ -45,13 +38,17 @@ namespace gut
 			if ( this != &other )
 			{
 				src_ = other.src_;
-				padding_ = other.padding_;
 				other.src_ = nullptr;
 			}
 		}
 
 		handle( handle const& ) = delete;
 		handle& operator=( handle const& ) = delete;
+
+		virtual size_type size() const noexcept
+		{
+			return sizeof( T );
+		}
 
 		virtual void destroy()
 		noexcept( std::is_nothrow_destructible<T>::value ) override
@@ -60,26 +57,18 @@ namespace gut
 			src_ = nullptr;
 		}
 
-		virtual void transfer( void* dst, std::size_t& out_size )
-		noexcept( noexcept(
-				std::declval<handle>().transfer( is_moveable, dst ) ) ) override
+		virtual void transfer( void* dst )
+		noexcept( noexcept( std::declval<handle>().transfer( is_moveable, dst ) ) ) override
 		{
-			padding_ = gut::calculate_padding<T>( dst );
-			transfer( is_moveable, reinterpret_cast<byte*>( dst ) + padding_ );
-			out_size += sizeof( T ) + padding_;
+			transfer( is_moveable, dst );
 		}
 
-		virtual void copy( void* dst,
-			gut::polymorphic_handle& out_handle, std::size_t& out_size ) const
+		virtual void copy( void* dst, gut::polymorphic_handle& out_handle, std::size_t& out_size ) const
 		noexcept( std::is_nothrow_copy_constructible<T>::value ) override
 		{
-			padding_ = gut::calculate_padding<T>( dst );
-			T* p{ ::new ( reinterpret_cast<byte*>( dst ) + padding_ ) T
-			{
-				*reinterpret_cast<T*>( src_ )
-			} };
+			T* p{ ::new ( dst ) T{ *reinterpret_cast<T*>( src_ ) } };
 			out_handle = gut::polymorphic_handle{ gut::handle<T>{ p } };
-			out_size += sizeof( T ) + padding_;
+			out_size += sizeof( T );
 		}
 
 	private:
@@ -87,7 +76,7 @@ namespace gut
 		noexcept( std::is_nothrow_move_constructible<T>::value )
 		{
 			T* old_src{ reinterpret_cast<T*>( src_ ) };
-			src_ = ::new ( dst ) T{ *old_src };
+			src_ = ::new ( dst ) T{ std::move( *old_src ) };
 			old_src->~T();
 		}
 

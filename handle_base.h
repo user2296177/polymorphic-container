@@ -12,11 +12,12 @@ namespace gut
 	class handle_base
 	{
 	public:
+		using size_type = std::size_t;
+
 		virtual ~handle_base() = default;
 
 		handle_base( handle_base&& other ) noexcept
 			: src_{ other.src_ }
-            , padding_{ other.padding_ }
         {
             other.src_ = nullptr;
         }
@@ -26,7 +27,6 @@ namespace gut
             if ( this != &other )
             {
                 src_ = other.src_;
-                padding_ = other.padding_;
                 other.src_ = nullptr;
             }
             return *this;
@@ -35,29 +35,23 @@ namespace gut
 		handle_base( handle_base const& ) = delete;
 		handle_base& operator=( handle_base const& ) = delete;
 
+		virtual size_type size() const noexcept = 0;
+
 		virtual void destroy() = 0;
-		virtual void transfer( void* dst, std::size_t& out_size ) = 0;
-		virtual void copy( void* dst,
-			polymorphic_handle& out_handle, std::size_t& out_size ) const = 0;
+		virtual void transfer( void* dst ) = 0;
+		virtual void copy( void* dst, polymorphic_handle& out_handle, size_type& out_size ) const = 0;
 
 		void* src() const noexcept
 		{
 			return src_;
 		}
 
-		std::size_t padding() const noexcept
-		{
-			return padding_;
-		}
-
 	protected:
-		handle_base( void* src, std::size_t const padding ) noexcept
+		handle_base( void* src ) noexcept
             : src_{ src }
-            , padding_{ padding }
         {}
 
 		void* src_;
-		mutable std::size_t padding_;
 	};
 }
 #endif // GUT_HANDLE_BASE_H
