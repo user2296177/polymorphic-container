@@ -31,12 +31,14 @@ namespace gut
 		using const_pointer = value_type const*;
 
 		using container_type = std::vector<gut::polymorphic_handle>;
-		using size_type = container_type::size_type;
 
 		using iterator = gut::polymorphic_vector_iterator<B, false>;
 		using const_iterator = gut::polymorphic_vector_iterator<B, true>;
 		using reverse_iterator = std::reverse_iterator<iterator>;
 		using const_reverse_iterator = std::reverse_iterator<const_iterator>;
+
+		using size_type = container_type::size_type;
+		using difference_type = typename iterator::difference_type;
 
 		// iterators - complete
 		iterator begin() noexcept;
@@ -70,7 +72,7 @@ namespace gut
 
 		polymorphic_vector( polymorphic_vector&& other ) noexcept;
 		polymorphic_vector& operator=( polymorphic_vector&& other ) noexcept;
-
+		
 		polymorphic_vector( polymorphic_vector const& other );
 		polymorphic_vector& operator=( polymorphic_vector const& other );
 
@@ -85,19 +87,18 @@ namespace gut
 		template
 		<
 			class D, class... Args,
-			std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int> = 0,
-			std::enable_if_t
-			<
-				std::is_constructible<std::decay_t<D>, Args&&...>::value, int
-			> = 0
+			std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int> = 0
 		>
 		void emplace_back( Args&&... value );
 
-		void pop_back();
+		iterator erase( const_iterator position );
+		iterator erase( const_iterator begin, const_iterator end );
 
+		void pop_back();
+		void swap( polymorphic_vector& other ) noexcept;
 		void clear() noexcept;
-		
-		// element access - complete
+
+		// element access
 		reference operator[]( size_type const i ) noexcept;
 		const_reference operator[]( size_type const i ) const noexcept;
 
@@ -115,10 +116,7 @@ namespace gut
 		size_type size() const noexcept;
 		bool empty() const noexcept;
 
-		// specialized algorithms - complete
-		void swap( polymorphic_vector& other ) noexcept;
-
-	private:
+	public:
 		using byte = unsigned char;
 
 		void copy( polymorphic_vector const& other )
@@ -135,26 +133,22 @@ namespace gut
 
 		void erase_range( size_type const i, size_type const j )
 		{
-			gut::polymorphic_handle& hi{ handles_[ i ] };
-			emplace_offset_ = reinterpret_cast<byte*>( hi->src() ) - data_;
-			hi->destroy();
+			assert( i < j );
+
+			gut::polymorphic_handle& h_i{ handles_[ i ] };
+			byte* erase_ptr{ reinterpret_cast<byte*>( h_i->src() ) };
+			size_type transfer_offset = erase_ptr - data_;
+			erase_ptr -= transfer_offset;
+			h_i->destroy();
 
 			for ( size_type k{ i + 1 }; k != j; ++k )
 			{
 				handles_[ k ]->destroy();
 			}
 
-			gut::polymorphic_handle& hj{ handles_[ j ] };
-			hj->transfer( data_ + emplace_offset_ );
-			sizeof_prev_ = hj->size();
-			emplace_offset_ = sizeof_prev_;
-
-			for ( size_type k{ j + 1 }, handle_count{ handles_.size() }; k != handle_count; ++k )
-			{
-				update_emplace_offset( handles_[ k ]->size() );
-				handles_[ k ]->transfer( data_ + emplace_offset_ );
-				sizeof_prev_ = handles_[ k ]->size();
-			}
+			/*
+			properly transfer and set emplace_offset_;;;
+			*/
 
 			auto handles_begin = handles_.begin();
 			handles_.erase( handles_begin + i, handles_begin + j );
@@ -251,7 +245,7 @@ gut::polymorphic_vector<B>::~polymorphic_vector() noexcept
 	std::free( data_ );
 }
 //////////////////////////////////////////////////////////////////////////////////
-// constructors
+// constructors/assignment
 //////////////////////////////////////////////////////////////////////////////////
 template<class B>
 template
@@ -471,20 +465,44 @@ gut::polymorphic_vector<B>::crend() const noexcept
 // modifiers
 //////////////////////////////////////////////////////////////////////////////////
 template<class B>
+template<class D, std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int>>
+inline void gut::polymorphic_vector<B>::push_back( D&& value )
+{
+	emplace_back<D>( std::forward<D>( value ) );
+}
+
+template<class B>
 template
 <
-	class D,
+	class D, class... Args,
 	std::enable_if_t<std::is_base_of<B, std::decay_t<D>>::value, int>
 >
-inline void
-gut::polymorphic_vector<B>::push_back( D&& value )
+inline void gut::polymorphic_vector<B>::emplace_back( Args&&... args )
 {
 	using der_t = std::decay_t<D>;
 
-	der_t* p{ ::new ( next_alloc_ptr<der_t>() ) der_t{ std::forward<D>( value ) } };
+	der_t* p{ ::new ( next_alloc_ptr<der_t>() ) der_t{
+		std::forward<Args>( args )... } };
+
 	handles_.emplace_back( gut::handle<der_t>{ p } );
 
 	emplace_offset_ += sizeof( der_t );
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::iterator
+gut::polymorphic_vector<B>::erase( const_iterator position )
+{
+	// TODO: finish implementing
+	return iterator{ handles_, 0 };
+}
+
+template<class B>
+inline typename gut::polymorphic_vector<B>::iterator
+gut::polymorphic_vector<B>::erase( const_iterator begin, const_iterator end )
+{
+	// TODO: finish implementing
+	return iterator{ handles_ , 0 };
 }
 
 template<class B>
@@ -581,20 +599,8 @@ inline bool gut::polymorphic_vector<B>::empty() const noexcept
 {
 	return handles_.empty();
 }
-//////////////////////////////////////////////////////////////////////////////////
-// specialized algorithms
-//////////////////////////////////////////////////////////////////////////////////
-template<class B>
-inline void
-gut::polymorphic_vector<B>::swap( polymorphic_vector<B>& other ) noexcept
-{
-	std::swap( handles_, other.handles_ );
-	std::swap( data_, other.data_ );
-	std::swap( size_, other.size_ );
-	std::swap( capacity_, other.capacity_ );
-}
 ///////////////////////////////////////////////////////////////////////////////
-// free functions
+// specialized algorithms
 ///////////////////////////////////////////////////////////////////////////////
 template <class B>
 void swap( gut::polymorphic_vector<B>& x, gut::polymorphic_vector<B>& y )
