@@ -54,6 +54,54 @@ gut::contiguous_allocator& gut::contiguous_allocator::operator=(contiguous_alloc
 	return *this;
 }
 
+gut::contiguous_allocator::contiguous_allocator(contiguous_allocator const& other)
+	: data_{ reinterpret_cast<byte*>(std::malloc(other.offset_)) }
+	, offset_{ 0 }
+	, cap_{ 0 }
+{
+	if (data_)
+	{
+		sections_ = other.sections_;
+		offset_ = other.offset_;
+		cap_ = other.offset_;
+		copy(other);
+	}
+	else
+	{
+		throw std::bad_alloc{};
+	}
+}
+
+gut::contiguous_allocator& gut::contiguous_allocator::operator=(contiguous_allocator const& other)
+{
+	if (this != &other)
+	{
+		if (offset_ >= other.offset_)
+		{
+			clear();
+		}
+		else
+		{
+			byte* new_data = reinterpret_cast<byte*>(std::malloc(
+				other.offset_));
+
+			if (new_data)
+			{
+				clear();
+				data_ = new_data;
+				cap_ = other.offset_;
+			}
+			else
+			{
+				throw std::bad_alloc{};
+			}
+		}
+		offset_ = other.offset_;
+		copy(other);
+	}
+	return *this;
+}
+
 void gut::contiguous_allocator::deallocate(size_type const i, size_type const j)
 {
 	assert(i < j);
@@ -79,6 +127,20 @@ void gut::contiguous_allocator::clear()
 	sections_.clear();
 	handles_.clear();
 	offset_ = 0;
+}
+
+void gut::contiguous_allocator::copy(contiguous_allocator const& other)
+{
+	gut::polymorphic_handle out_h;
+	for (auto const& h : other.handles_)
+	{
+		h->copy(
+			data_ + (reinterpret_cast<byte*>(h->blk()) - other.data_),
+			data_ + (reinterpret_cast<byte*>(h->src()) - other.data_),
+			out_h);
+
+		handles_.emplace_back(std::move(out_h));
+	}
 }
 
 void gut::contiguous_allocator::erase_inner_sections(size_type const i, size_type const j)

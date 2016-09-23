@@ -20,6 +20,9 @@ namespace gut
 		contiguous_allocator(contiguous_allocator&& other) noexcept;
 		contiguous_allocator& operator=(contiguous_allocator&& other) noexcept;
 
+		contiguous_allocator(contiguous_allocator const& other);
+		contiguous_allocator& operator=(contiguous_allocator const& other);
+
 		template<class T>
 		T* allocate();
 
@@ -41,6 +44,8 @@ namespace gut
 			size_type handle_index;
 			size_type available_size;
 		};
+
+		void copy(contiguous_allocator const& other);
 
 		void erase_inner_sections(size_type const i, size_type const j);
 
