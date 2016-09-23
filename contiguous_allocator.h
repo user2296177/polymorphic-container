@@ -15,6 +15,8 @@ namespace gut
 		using byte = unsigned char;
 		using size_type = std::size_t;
 
+		~contiguous_allocator() noexcept;
+
 		explicit contiguous_allocator(size_type const cap = 0);
 
 		contiguous_allocator(contiguous_allocator&& other) noexcept;
@@ -32,8 +34,6 @@ namespace gut
 		void clear();
 
 	public:
-		template<class B> friend class polymorphic_vector;
-
 		struct section
 		{
 			constexpr section(size_type const hnd_idx, size_type const avail_sz)
@@ -56,13 +56,11 @@ namespace gut
 
 		size_type next_section(size_type const handle_index) const;
 
-		void transfer(std::pair<byte*, size_type> block,
-			size_type i, size_type const j);
+		void transfer(std::pair<byte*, size_type> block, size_type i, size_type const j);
 
 		bool is_overwrite(byte* dst, gut::polymorphic_handle& h) const;
 
-		inline byte* make_aligned(byte* blk, size_type const align)
-			const noexcept;
+		inline byte* make_aligned(byte* blk, size_type const align) const noexcept;
 
 		struct section;
 

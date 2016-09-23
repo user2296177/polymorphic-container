@@ -3,12 +3,18 @@
 
 using byte = gut::contiguous_allocator::byte;
 using size_type = gut::contiguous_allocator::size_type;
+
 /*
 #define make_aligned( block, align )\
 (unsigned char*)( ( (std::uintptr_t)block + align - 1 ) & ~( align - 1 ) )
 //*/
 
 #define as_byte_ptr( ptr ) reinterpret_cast<byte*>( ptr )
+
+gut::contiguous_allocator::~contiguous_allocator() noexcept
+{
+	std::free(data_);
+}
 
 gut::contiguous_allocator::contiguous_allocator(size_type const cap)
 	: data_{ reinterpret_cast<byte*>(std::malloc(cap)) }
@@ -112,6 +118,14 @@ void gut::contiguous_allocator::deallocate(size_type const i, size_type const j)
 	auto block = destroy(i, j);
 	auto end = next_section(j);
 
+	// merge right adjacent section
+	auto ss = to_section_index(end);
+	if (ss != sections_.size())
+	{
+		block.second += sections_[ss].available_size;
+		sections_.erase(sections_.cbegin() + ss);
+	}
+
 	transfer(block, j, end);
 
 	auto handles_cbegin = handles_.cbegin();
@@ -162,8 +176,7 @@ void gut::contiguous_allocator::erase_inner_sections(size_type const i, size_typ
 	auto b = sections_.cbegin();
 	auto e = sections_.cend();
 
-	for (; b != e && b->handle_index <= i; ++b)
-		;
+	for (; b != e && b->handle_index <= i; ++b);
 
 	for (--e; e != b; --e)
 	{
@@ -181,20 +194,20 @@ void gut::contiguous_allocator::erase_inner_sections(size_type const i, size_typ
 	sections_.erase(b, e);
 }
 
-std::pair<byte*, size_type> gut::contiguous_allocator::destroy(size_type i,
-	size_type const j)
+std::pair<byte*, size_type> gut::contiguous_allocator::destroy(size_type i, size_type const j)
 {
 	auto& h_i = handles_[i++];
 	auto& h_j = handles_[j - 1];
 
-	auto block_address = (byte*)h_i->blk();
-	auto block_size = ((byte*)h_j->src() + h_j->size()) - block_address;
+	auto block_address = as_byte_ptr(h_i->blk());
+	auto block_size = (as_byte_ptr(h_j->src()) + h_j->size()) - block_address;
 
-	auto section_index = to_section_index(i);
-	if (section_index != sections_.size())
+	// merge left adjacent section
+	auto self = to_section_index(i);
+	if (self != sections_.size())
 	{
-		block_address -= sections_[section_index].available_size;
-		block_size += sections_[section_index].available_size;
+		block_address -= sections_[self].available_size;
+		block_size += sections_[self].available_size;
 	}
 
 	h_i->destroy();
@@ -222,21 +235,6 @@ size_type gut::contiguous_allocator::to_section_index(size_type const handle_ind
 
 void gut::contiguous_allocator::transfer(std::pair<byte*, size_type> block, size_type i, size_type const j)
 {
-	auto b = sections_.cbegin();
-	auto e = sections_.cend();
-	for (; b != e; ++b)
-	{
-		if (b->handle_index > i)
-		{
-			break;
-		}
-		else if (b->handle_index == i)
-		{
-			sections_.erase(b);
-			break;
-		}
-	}
-
 	size_type offset = 0;
 
 	for (byte* blk, *src; i != j; ++i)
@@ -269,7 +267,7 @@ void gut::contiguous_allocator::transfer(std::pair<byte*, size_type> block, size
 	else
 	{
 		auto& last_handle = handles_.back();
-		offset_ = ((byte*)last_handle->src() + last_handle->size()) - data_;
+		offset_ = (as_byte_ptr(last_handle->src()) + last_handle->size()) - data_;
 	}
 }
 
@@ -290,12 +288,9 @@ size_type gut::contiguous_allocator::next_section(size_type const handle_index) 
 	return handles_.size();
 }
 
-inline
-byte* gut::contiguous_allocator::make_aligned(byte* blk, size_type const align)
-const noexcept
+inline byte* gut::contiguous_allocator::make_aligned(byte* blk, size_type const align) const noexcept
 {
-	return reinterpret_cast<byte*>(
-		(reinterpret_cast<std::uintptr_t>(blk) + align - 1) & ~(align - 1));
+	return as_byte_ptr((reinterpret_cast<std::uintptr_t>(blk) + align - 1) & ~(align - 1));
 }
 
 void swap(gut::contiguous_allocator& x, gut::contiguous_allocator& y)

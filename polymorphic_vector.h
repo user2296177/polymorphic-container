@@ -50,6 +50,9 @@ namespace gut
 		const_reverse_iterator crbegin() const noexcept;
 		const_reverse_iterator crend() const noexcept;
 
+		// destructor
+		~polymorphic_vector();
+
 		// constructors
 		polymorphic_vector(size_type const capacity = 0);
 
@@ -181,6 +184,17 @@ inline typename gut::polymorphic_vector<B>::const_reverse_iterator
 gut::polymorphic_vector<B>::crend() const noexcept
 {
 	return const_reverse_iterator{ cbegin() };
+}
+//////////////////////////////////////////////////////////////////////////////////
+// destructor
+//////////////////////////////////////////////////////////////////////////////////
+template<class B>
+inline gut::polymorphic_vector<B>::~polymorphic_vector()
+{
+	for (auto& h : alloc_.handles_)
+	{
+		h->destroy();
+	}
 }
 //////////////////////////////////////////////////////////////////////////////////
 // constructors/assignment
