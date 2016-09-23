@@ -28,6 +28,7 @@ namespace gut
 
 		void deallocate(size_type const i, size_type const j);
 
+		void swap(contiguous_allocator& other) noexcept;
 		void clear();
 
 	public:
@@ -119,4 +120,8 @@ T* gut::contiguous_allocator::allocate()
 
 	return reinterpret_cast<T*>( src );
 }
+
+void swap(gut::contiguous_allocator& x, gut::contiguous_allocator& y)
+noexcept(noexcept(x.swap(y)));
+
 #endif // GUT_CONTIGUOUS_ALLOCATOR_H

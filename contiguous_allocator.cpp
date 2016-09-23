@@ -118,6 +118,15 @@ void gut::contiguous_allocator::deallocate(size_type const i, size_type const j)
 	handles_.erase(handles_cbegin + i, handles_cbegin + j);
 }
 
+void gut::contiguous_allocator::swap(contiguous_allocator& other) noexcept
+{
+	std::swap(sections_, other.sections_);
+	std::swap(handles_, other.handles_);
+	std::swap(data_, other.data_);
+	std::swap(offset_, other.offset_);
+	std::swap(cap_, other.cap_);
+}
+
 void gut::contiguous_allocator::clear()
 {
 	for (auto& h : handles_)
@@ -287,4 +296,10 @@ const noexcept
 {
 	return reinterpret_cast<byte*>(
 		(reinterpret_cast<std::uintptr_t>(blk) + align - 1) & ~(align - 1));
+}
+
+void swap(gut::contiguous_allocator& x, gut::contiguous_allocator& y)
+noexcept(noexcept(x.swap(y)))
+{
+	x.swap(y);
 }
