@@ -118,12 +118,13 @@ void gut::contiguous_allocator::deallocate(size_type const i, size_type const j)
 	auto block = destroy(i, j);
 	auto end = next_section(j);
 
-	// merge right adjacent section, remove section if adjacent section will be moved
+	// merge right adjacent section, remove section if adjacent section 
 	auto adjacent_section_idx = to_section_index(end);
 	if (adjacent_section_idx != sections_.size())
 	{
 		block.second += sections_[adjacent_section_idx].available_size;
-		if (handles_[sections_[adjacent_section_idx].handle_index]->size() <= block.second)
+		// need to update index of a handle...
+		//if (handles_[sections_[adjacent_section_idx].handle_index]->size() <= block.second)
 		{
 			sections_.erase(sections_.cbegin() + adjacent_section_idx);
 		}
