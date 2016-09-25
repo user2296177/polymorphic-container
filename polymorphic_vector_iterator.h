@@ -21,11 +21,11 @@ namespace gut
 		using difference_type = typename std::iterator<std::random_access_iterator_tag, B>::difference_type;
 		using size_type = std::size_t;
 		using container_reference = std::conditional_t
-			<
+		<
 			is_const,
 			std::vector<gut::polymorphic_handle> const&,
 			std::vector<gut::polymorphic_handle>&
-			>;
+		>;
 
 		container_reference handles_;
 		size_type iter_idx_;

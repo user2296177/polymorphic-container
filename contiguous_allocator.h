@@ -7,6 +7,7 @@
 
 namespace gut
 {
+	class polymorphic_handle;
 	template<class B> class polymorphic_vector;
 
 	class contiguous_allocator
@@ -36,10 +37,9 @@ namespace gut
 	public:
 		struct section
 		{
-			constexpr section(size_type const hnd_idx, size_type const avail_sz)
-				noexcept
-				: handle_index{ hnd_idx }
-				, available_size{ avail_sz }
+			section(size_type const idx, size_type const sz) noexcept
+				: handle_index{ idx }
+				, available_size{ sz }
 			{}
 
 			size_type handle_index;
@@ -50,19 +50,13 @@ namespace gut
 
 		void erase_inner_sections(size_type const i, size_type const j);
 
-		std::pair<byte*, size_type> destroy(size_type i, size_type const j);
+		byte* destroy(size_type i, size_type const j);
 
 		size_type to_section_index(size_type const handle_index) const;
 
 		size_type next_section(size_type const handle_index) const;
 
-		void transfer(std::pair<byte*, size_type> block, size_type i, size_type const j);
-
-		bool is_overwrite(byte* dst, gut::polymorphic_handle& h) const;
-
-		inline byte* make_aligned(byte* blk, size_type const align) const noexcept;
-
-		struct section;
+		void transfer(byte* block, size_type i, size_type const j);
 
 		std::vector<section> sections_;
 		std::vector<gut::polymorphic_handle> handles_;
@@ -71,6 +65,9 @@ namespace gut
 		size_type cap_;
 	};
 }
+
+#define make_aligned(block, align)\
+(byte*)(((std::uintptr_t)block + align - 1) & ~(align - 1))
 
 template<class T>
 T* gut::contiguous_allocator::allocate()
