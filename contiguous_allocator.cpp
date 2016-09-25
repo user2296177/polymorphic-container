@@ -251,7 +251,7 @@ void gut::contiguous_allocator::transfer(byte* block, size_type i, size_type con
 		else if ( i != 0 )
 		{
 			// remember previous src to properly calc size?
-			sections_.emplace_back(i, i);
+			sections_.emplace_back(i, blk - data_);
 			return;
 		}
 	}
