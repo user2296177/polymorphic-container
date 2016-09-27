@@ -36,7 +36,7 @@ namespace gut
 		noexcept(std::is_nothrow_destructible<T>::value)
 		override;
 
-		virtual void transfer(void* blk, void* nsrc)
+		virtual void transfer(void* nblk, void* nsrc)
 		noexcept(noexcept(std::declval<handle>().transfer(is_moveable, nsrc)))
 		override;
 
@@ -83,10 +83,10 @@ noexcept(std::is_nothrow_destructible<T>::value)
 }
 
 template<class T>
-inline void gut::handle<T>::transfer(void* blk, void* nsrc)
+inline void gut::handle<T>::transfer(void* nblk, void* nsrc)
 noexcept(noexcept(std::declval<handle>().transfer(is_moveable, nsrc)))
 {
-	blk_ = blk;
+	blk_ = nblk;
 	transfer(is_moveable, nsrc);
 }
 
