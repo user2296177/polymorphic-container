@@ -67,7 +67,6 @@ gut::contiguous_allocator::contiguous_allocator(contiguous_allocator const& othe
 {
 	if (data_)
 	{
-		sections_ = other.sections_;
 		offset_ = other.offset_;
 		cap_ = other.offset_;
 		copy(other);
@@ -101,7 +100,6 @@ gut::contiguous_allocator& gut::contiguous_allocator::operator=(contiguous_alloc
 				throw std::bad_alloc{};
 			}
 		}
-		offset_ = other.offset_;
 		copy(other);
 	}
 	return *this;
@@ -157,14 +155,15 @@ void gut::contiguous_allocator::clear()
 void gut::contiguous_allocator::copy(contiguous_allocator const& other)
 {
 	gut::polymorphic_handle out_h;
+	byte* blk;
+	byte* src;
 	for (auto const& h : other.handles_)
 	{
-		h->copy(
-			data_ + (reinterpret_cast<byte*>(h->blk()) - other.data_),
-			data_ + (reinterpret_cast<byte*>(h->src()) - other.data_),
-			out_h);
-
+		blk = data_ + offset_;
+		src = make_aligned(blk, h->align());
+		h->copy(blk, src, out_h);
 		handles_.emplace_back(std::move(out_h));
+		offset_ += h->size() + (src - blk);
 	}
 }
 
@@ -172,7 +171,7 @@ byte* gut::contiguous_allocator::destroy(size_type i, size_type const j)
 {
 	auto& h_i = handles_[i++];
 
-	auto block_address = reinterpret_cast<byte*>(h_i->blk());
+	auto block_address = as_byte_ptr(h_i->blk());
 
 	// merge left adjacent section - maybe switch to iterator?
 	auto l_sec = to_section_index(i);
@@ -242,15 +241,13 @@ void gut::contiguous_allocator::transfer(byte* block, size_type i, size_type con
 		blk = block + offset;
 		src = make_aligned(blk, handles_[i]->align());
 
-		auto req_sz = handles_[i]->size() + (src - blk);
 		if (src + handles_[i]->size() <= handles_[i]->src())
 		{
 			handles_[i]->transfer(blk, src);
-			offset += req_sz;
+			offset += handles_[i]->size() + (src - blk);
 		}
 		else if ( i != 0 )
 		{
-			// remember previous src to properly calc size?
 			sections_.emplace_back(i, blk - data_);
 			return;
 		}
